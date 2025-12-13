@@ -1,0 +1,105 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# NGP - Nginx Geo Profiler - Log Processor Deployment
+# ═══════════════════════════════════════════════════════════════════════════
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-processor
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: log-processor
+    app.kubernetes.io/part-of: nginx-geo-profiler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-processor
+  template:
+    metadata:
+      labels:
+        app: log-processor
+        app.kubernetes.io/name: log-processor
+        app.kubernetes.io/part-of: nginx-geo-profiler
+    spec:
+      initContainers:
+        # Esperar a que PostgreSQL esté listo
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - 'sh'
+            - '-c'
+            - |
+              until nc -z postgres-service 5432; do
+                echo "Waiting for PostgreSQL..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready!"
+        # Esperar a que Logstash esté listo
+        - name: wait-for-logstash
+          image: busybox:1.36
+          command:
+            - 'sh'
+            - '-c'
+            - |
+              until nc -z logstash-service 9600; do
+                echo "Waiting for Logstash..."
+                sleep 5
+              done
+              echo "Logstash is ready!"
+      containers:
+        - name: log-processor
+          image: ghcr.io/tu-org/ngp-log-processor:latest  # Cambiar por tu imagen
+          # O usar build local con:
+          # image: ngp-log-processor:latest
+          # imagePullPolicy: Never
+          env:
+            - name: POSTGRES_HOST
+              value: "postgres-service"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ngp-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ngp-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: ngp-secrets
+                  key: POSTGRES_DB
+            - name: LOG_FILE
+              value: "/var/log/nginx/access.log"
+            - name: GEOIP_DB
+              value: "/app/geoip/GeoLite2-City.mmdb"
+            - name: BATCH_SIZE
+              value: "100"
+            - name: FLUSH_INTERVAL
+              value: "5.0"
+          volumeMounts:
+            - name: logstash-logs
+              mountPath: /var/log/nginx
+              readOnly: true
+            - name: geoip-data
+              mountPath: /app/geoip
+              readOnly: true
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: logstash-logs
+          persistentVolumeClaim:
+            claimName: logstash-logs-pvc
+        - name: geoip-data
+          emptyDir: {}  # Reemplazar con ConfigMap o Secret con el archivo .mmdb
+          # Para producción, usar un PVC o un initContainer que descargue el archivo
+

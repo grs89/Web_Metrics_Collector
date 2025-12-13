@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# NGP - Filebeat Configuration for Remote Nginx Server
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# INSTRUCTIONS:
+# 1. Copy this file to your Nginx server
+# 2. Install Filebeat: https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-installation.html
+# 3. Edit the 'hosts' field below with your NGP server IP
+# 4. Start Filebeat: sudo systemctl start filebeat
+#
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Filebeat inputs
+# ═══════════════════════════════════════════════════════════════════════════
+filebeat.inputs:
+  - type: log
+    enabled: true
+    
+    # Path to Nginx access logs
+    # Adjust this path according to your Nginx configuration
+    paths:
+      - /var/log/nginx/access.log
+      - /var/log/nginx/*access*.log
+    
+    # JSON parsing (if using JSON log format)
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    
+    # Fields to identify the source
+    fields:
+      log_type: nginx_access
+      server_name: "${HOSTNAME}"
+    fields_under_root: true
+    
+    # Multiline for non-JSON logs (disabled if using JSON)
+    # multiline.pattern: '^\d{4}/\d{2}/\d{2}'
+    # multiline.negate: true
+    # multiline.match: after
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Processors
+# ═══════════════════════════════════════════════════════════════════════════
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  
+  # Drop health check logs (optional)
+  - drop_event:
+      when:
+        contains:
+          request_uri: "/health"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Output to Logstash on NGP Server
+# ═══════════════════════════════════════════════════════════════════════════
+output.logstash:
+  # ⚠️ CHANGE THIS to your NGP server IP address
+  hosts: ["YOUR_NGP_SERVER_IP:5044"]
+  
+  # SSL/TLS (optional, recommended for production)
+  # ssl.enabled: true
+  # ssl.certificate_authorities: ["/etc/filebeat/ca.crt"]
+  # ssl.certificate: "/etc/filebeat/client.crt"
+  # ssl.key: "/etc/filebeat/client.key"
+  
+  # Load balancing
+  loadbalance: true
+  
+  # Retry settings
+  backoff.init: 1s
+  backoff.max: 60s
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Logging
+# ═══════════════════════════════════════════════════════════════════════════
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0640
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Monitoring (optional)
+# ═══════════════════════════════════════════════════════════════════════════
+monitoring.enabled: false
+

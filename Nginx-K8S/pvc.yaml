@@ -1,0 +1,65 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# NGP - Nginx Geo Profiler - Persistent Volume Claims
+# ═══════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: nginx-geo-profiler
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  # storageClassName: standard  # Descomentar y ajustar según tu cluster
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: nginx-geo-profiler
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logstash-data-pvc
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/part-of: nginx-geo-profiler
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logstash-logs-pvc
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/part-of: nginx-geo-profiler
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+

@@ -1,0 +1,64 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# NGP - Nginx Geo Profiler - Ingress (Opcional)
+# ═══════════════════════════════════════════════════════════════════════════
+# Requiere un Ingress Controller instalado (nginx-ingress, traefik, etc.)
+# ═══════════════════════════════════════════════════════════════════════════
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ngp-ingress
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: ngp-ingress
+    app.kubernetes.io/part-of: nginx-geo-profiler
+  annotations:
+    # Para nginx-ingress controller
+    kubernetes.io/ingress.class: nginx
+    # Para HTTPS (opcional, requiere cert-manager)
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  # tls:  # Descomentar para HTTPS
+  #   - hosts:
+  #       - grafana.tu-dominio.com
+  #     secretName: ngp-tls-secret
+  rules:
+    - host: grafana.tu-dominio.com  # Cambiar por tu dominio
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: 3000
+---
+# Ingress para Logstash (para Filebeat)
+# Solo usar si necesitas exponer Logstash externamente
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: logstash-ingress
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: logstash-ingress
+    app.kubernetes.io/part-of: nginx-geo-profiler
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    # Para TCP/UDP necesitarás configurar el ingress controller especialmente
+    # Ver: https://kubernetes.github.io/ingress-nginx/user-guide/exposing-tcp-udp-services/
+spec:
+  rules:
+    - host: logstash.tu-dominio.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: logstash-service
+                port:
+                  number: 5044
+

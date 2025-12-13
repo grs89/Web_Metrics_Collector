@@ -1,0 +1,18 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# NGP - Grafana Dashboards Provisioning
+# ═══════════════════════════════════════════════════════════════════════════
+
+apiVersion: 1
+
+providers:
+  - name: 'NGP Dashboards'
+    orgId: 1
+    folder: 'NGP - Nginx Geo Profiler'
+    folderUid: ngp-folder
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+

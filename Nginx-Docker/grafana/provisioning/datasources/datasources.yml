@@ -1,0 +1,25 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# NGP - Grafana Datasources Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    type: postgres
+    uid: ngp-postgres
+    url: postgres:5432
+    database: nginx_logs
+    user: ngp_user
+    secureJsonData:
+      password: ngp_secure_password_2024
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 14400
+      postgresVersion: 1600
+      timescaledb: false
+    isDefault: true
+    editable: false
+

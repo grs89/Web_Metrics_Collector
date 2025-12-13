@@ -1,0 +1,282 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# NGP - Nginx Geo Profiler - ConfigMaps
+# ═══════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/part-of: nginx-geo-profiler
+data:
+  logstash.yml: |
+    http.host: "0.0.0.0"
+    xpack.monitoring.enabled: false
+    pipeline.workers: 2
+    pipeline.batch.size: 125
+    pipeline.batch.delay: 50
+  
+  nginx.conf: |
+    input {
+      beats {
+        port => 5044
+        host => "0.0.0.0"
+      }
+      
+      tcp {
+        port => 5000
+        codec => json_lines
+      }
+      
+      udp {
+        port => 5000
+        codec => json_lines
+      }
+    }
+    
+    filter {
+      if [message] =~ /^\{.*\}$/ {
+        json {
+          source => "message"
+          target => "nginx"
+        }
+      }
+      
+      if [nginx][timestamp] {
+        date {
+          match => [ "[nginx][timestamp]", "ISO8601" ]
+          target => "@timestamp"
+        }
+      }
+      
+      mutate {
+        add_field => {
+          "log_timestamp" => "%{[nginx][timestamp]}"
+          "remote_addr" => "%{[nginx][remote_addr]}"
+          "request_method" => "%{[nginx][request_method]}"
+          "request_uri" => "%{[nginx][request_uri]}"
+          "status" => "%{[nginx][status]}"
+          "body_bytes_sent" => "%{[nginx][body_bytes_sent]}"
+          "request_time" => "%{[nginx][request_time]}"
+          "http_referer" => "%{[nginx][http_referer]}"
+          "http_user_agent" => "%{[nginx][http_user_agent]}"
+          "http_x_forwarded_for" => "%{[nginx][http_x_forwarded_for]}"
+        }
+      }
+      
+      mutate {
+        convert => {
+          "status" => "integer"
+          "body_bytes_sent" => "integer"
+          "request_time" => "float"
+        }
+      }
+    }
+    
+    output {
+      file {
+        path => "/usr/share/logstash/data/nginx-logs/access.log"
+        codec => json_lines
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: nginx-geo-profiler
+data:
+  01-schema.sql: |
+    -- Enable required extensions
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    
+    -- Main access logs table
+    CREATE TABLE nginx_access_logs (
+        id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        remote_addr     INET NOT NULL,
+        remote_user     VARCHAR(255),
+        request_method  VARCHAR(10),
+        request_uri     TEXT,
+        request         TEXT,
+        status          SMALLINT NOT NULL,
+        body_bytes_sent BIGINT DEFAULT 0,
+        request_time    DECIMAL(10, 6),
+        request_length  INTEGER,
+        http_referer    TEXT,
+        http_user_agent TEXT,
+        http_x_forwarded_for TEXT,
+        host            VARCHAR(255),
+        server_name     VARCHAR(255),
+        upstream_addr   VARCHAR(255),
+        upstream_response_time VARCHAR(50),
+        ssl_protocol    VARCHAR(20),
+        ssl_cipher      VARCHAR(100),
+        connection      BIGINT,
+        connection_requests INTEGER,
+        gzip_ratio      VARCHAR(20),
+        country_code    CHAR(2),
+        country_name    VARCHAR(100),
+        city            VARCHAR(255),
+        region          VARCHAR(255),
+        latitude        DECIMAL(9, 6),
+        longitude       DECIMAL(9, 6),
+        timezone        VARCHAR(50),
+        isp             VARCHAR(255),
+        asn             INTEGER,
+        as_org          VARCHAR(255),
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+    );
+    
+    -- Indexes
+    CREATE INDEX idx_logs_timestamp ON nginx_access_logs (timestamp DESC);
+    CREATE INDEX idx_logs_timestamp_date ON nginx_access_logs ((timestamp::DATE));
+    CREATE INDEX idx_logs_remote_addr ON nginx_access_logs (remote_addr);
+    CREATE INDEX idx_logs_status ON nginx_access_logs (status);
+    CREATE INDEX idx_logs_country ON nginx_access_logs (country_code);
+    CREATE INDEX idx_logs_geo ON nginx_access_logs (latitude, longitude) WHERE latitude IS NOT NULL;
+    CREATE INDEX idx_logs_uri ON nginx_access_logs USING gin (request_uri gin_trgm_ops);
+    CREATE INDEX idx_logs_timestamp_status ON nginx_access_logs (timestamp DESC, status);
+    CREATE INDEX idx_logs_timestamp_country ON nginx_access_logs (timestamp DESC, country_code);
+    
+    -- Hourly metrics table
+    CREATE TABLE nginx_metrics_hourly (
+        id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        hour            TIMESTAMPTZ NOT NULL,
+        total_requests  BIGINT DEFAULT 0,
+        requests_2xx    BIGINT DEFAULT 0,
+        requests_3xx    BIGINT DEFAULT 0,
+        requests_4xx    BIGINT DEFAULT 0,
+        requests_5xx    BIGINT DEFAULT 0,
+        avg_response_time DECIMAL(10, 6),
+        max_response_time DECIMAL(10, 6),
+        min_response_time DECIMAL(10, 6),
+        p95_response_time DECIMAL(10, 6),
+        p99_response_time DECIMAL(10, 6),
+        total_bytes_sent BIGINT DEFAULT 0,
+        unique_ips      INTEGER DEFAULT 0,
+        unique_countries INTEGER DEFAULT 0,
+        created_at      TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(hour)
+    );
+    
+    CREATE INDEX idx_metrics_hour ON nginx_metrics_hourly (hour DESC);
+    
+    -- Views for Grafana
+    CREATE VIEW v_requests_per_second AS
+    SELECT 
+        date_trunc('second', timestamp) AS time,
+        COUNT(*) AS requests
+    FROM nginx_access_logs
+    WHERE timestamp > NOW() - INTERVAL '5 minutes'
+    GROUP BY date_trunc('second', timestamp)
+    ORDER BY time DESC;
+    
+    CREATE VIEW v_status_distribution AS
+    SELECT 
+        CASE 
+            WHEN status BETWEEN 200 AND 299 THEN '2xx Success'
+            WHEN status BETWEEN 300 AND 399 THEN '3xx Redirect'
+            WHEN status BETWEEN 400 AND 499 THEN '4xx Client Error'
+            WHEN status BETWEEN 500 AND 599 THEN '5xx Server Error'
+            ELSE 'Other'
+        END AS status_group,
+        status,
+        COUNT(*) AS count
+    FROM nginx_access_logs
+    WHERE timestamp > NOW() - INTERVAL '24 hours'
+    GROUP BY status
+    ORDER BY count DESC;
+    
+    CREATE VIEW v_geo_distribution AS
+    SELECT 
+        country_code,
+        country_name,
+        latitude,
+        longitude,
+        COUNT(*) AS request_count,
+        COUNT(DISTINCT remote_addr) AS unique_visitors
+    FROM nginx_access_logs
+    WHERE 
+        timestamp > NOW() - INTERVAL '24 hours'
+        AND latitude IS NOT NULL
+    GROUP BY country_code, country_name, latitude, longitude
+    ORDER BY request_count DESC;
+    
+    -- Cleanup function
+    CREATE OR REPLACE FUNCTION cleanup_old_logs(retention_days INTEGER DEFAULT 365)
+    RETURNS INTEGER AS $$
+    DECLARE
+        deleted_count INTEGER;
+    BEGIN
+        DELETE FROM nginx_access_logs 
+        WHERE timestamp < NOW() - (retention_days || ' days')::INTERVAL;
+        GET DIAGNOSTICS deleted_count = ROW_COUNT;
+        DELETE FROM nginx_metrics_hourly 
+        WHERE hour < NOW() - (retention_days || ' days')::INTERVAL;
+        RETURN deleted_count;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    GRANT SELECT ON ALL TABLES IN SCHEMA public TO PUBLIC;
+    GRANT USAGE ON SCHEMA public TO PUBLIC;
+
+  02-extensions.sql: |
+    -- Additional PostgreSQL extensions
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: nginx-geo-profiler
+data:
+  datasources.yml: |
+    apiVersion: 1
+    datasources:
+      - name: PostgreSQL
+        type: postgres
+        url: postgres-service:5432
+        database: nginx_logs
+        user: ngp_user
+        secureJsonData:
+          password: $POSTGRES_PASSWORD
+        jsonData:
+          sslmode: disable
+          maxOpenConns: 10
+          maxIdleConns: 10
+          connMaxLifetime: 14400
+          postgresVersion: 1600
+        isDefault: true
+        editable: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-config
+  namespace: ngp
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: nginx-geo-profiler
+data:
+  dashboards.yml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: 'NGP'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards
+

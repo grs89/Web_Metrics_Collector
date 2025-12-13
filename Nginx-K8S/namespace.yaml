@@ -1,0 +1,11 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# NGP - Nginx Geo Profiler - Kubernetes Namespace
+# ═══════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ngp
+  labels:
+    app.kubernetes.io/name: ngp
+    app.kubernetes.io/part-of: nginx-geo-profiler
+

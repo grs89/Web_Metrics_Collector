@@ -1,0 +1,154 @@
+services:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LOGSTASH - Receives logs from Filebeat
+  # ═══════════════════════════════════════════════════════════════════════════
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.1
+    container_name: ngp-logstash
+    ports:
+      - "5044:5044"      # Filebeat input
+      - "5000:5000/tcp"  # TCP input (alternative)
+      - "5000:5000/udp"  # UDP input (alternative)
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - logstash_data:/usr/share/logstash/data
+    environment:
+      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
+    networks:
+      - ngp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9600"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # POSTGRESQL - Database with 1 year retention
+  # ═══════════════════════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: ngp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ngp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ngp_secure_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-nginx_logs}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - ngp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ngp_user} -d ${POSTGRES_DB:-nginx_logs}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LOG PROCESSOR - Reads from Logstash output and enriches with GeoIP
+  # ═══════════════════════════════════════════════════════════════════════════
+  log-processor:
+    build:
+      context: ./log-processor
+      dockerfile: Dockerfile
+    container_name: ngp-log-processor
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-ngp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ngp_secure_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-nginx_logs}
+      LOG_FILE: /var/log/nginx/access.log
+      GEOIP_DB: /app/geoip/GeoLite2-City.mmdb
+    volumes:
+      - logstash_logs:/var/log/nginx:ro
+      - ./log-processor/geoip:/app/geoip:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      logstash:
+        condition: service_healthy
+    networks:
+      - ngp-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # GRAFANA - Visualization & Dashboards
+  # ═══════════════════════════════════════════════════════════════════════════
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ngp-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_INSTALL_PLUGINS: grafana-worldmap-panel,grafana-clock-panel,grafana-piechart-panel
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ngp-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # RETENTION MANAGER - Cleanup old data (cron job)
+  # ═══════════════════════════════════════════════════════════════════════════
+  retention-manager:
+    image: postgres:16-alpine
+    container_name: ngp-retention
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-ngp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ngp_secure_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-nginx_logs}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-ngp_secure_password_2024}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Retention manager started - will clean data older than 1 year every day at 3 AM"
+        while true; do
+          echo "[$(date)] Running retention cleanup..."
+          psql -h postgres -U $${POSTGRES_USER} -d $${POSTGRES_DB} -c "
+            DELETE FROM nginx_access_logs 
+            WHERE timestamp < NOW() - INTERVAL '1 year';
+            
+            SELECT 'Deleted ' || COUNT(*) || ' old records' 
+            FROM nginx_access_logs 
+            WHERE timestamp < NOW() - INTERVAL '1 year';
+          " 2>/dev/null || echo "Database not ready yet"
+          
+          echo "[$(date)] Next cleanup in 24 hours"
+          sleep 86400
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ngp-network
+    restart: unless-stopped
+
+networks:
+  ngp-network:
+    driver: bridge
+    name: ngp-network
+
+volumes:
+  postgres_data:
+    name: ngp-postgres-data
+  grafana_data:
+    name: ngp-grafana-data
+  logstash_data:
+    name: ngp-logstash-data
+  logstash_logs:
+    name: ngp-logstash-logs
