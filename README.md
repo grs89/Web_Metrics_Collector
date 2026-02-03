@@ -34,8 +34,8 @@ Sistema completo de monitoreo y análisis de logs de acceso de servidores web co
 
 | Método | Caso de Uso | Documentación |
 |--------|-------------|---------------|
-| 🐳 **Docker Compose** | Desarrollo, servidores individuales | [Nginx-Docker/](./Nginx-Docker/) |
-| ☸️ **Kubernetes** | Producción, alta disponibilidad | [Nginx-K8S/](./Nginx-K8S/) |
+| 🐳 **Docker Compose** | Desarrollo, servidores individuales | [Web_Metric_Collector_Docker/](./Web_Metric_Collector_Docker/) |
+| ☸️ **Kubernetes** | Producción, alta disponibilidad | [Web_Metric_Collector_K8S/](./Web_Metric_Collector_K8S/) |
 
 ## 🏗️ Arquitectura
 
@@ -57,7 +57,7 @@ Sistema completo de monitoreo y análisis de logs de acceso de servidores web co
 ### Docker Compose
 
 ```bash
-cd Nginx-Docker
+cd Web_Metric_Collector_Docker
 
 # Configurar
 cp env.example .env
@@ -72,7 +72,7 @@ docker compose up -d
 ### Kubernetes
 
 ```bash
-cd Nginx-K8S
+cd Web_Metric_Collector_K8S
 
 # Modificar secrets.yaml con tus credenciales
 # Luego desplegar con Kustomize
@@ -83,23 +83,23 @@ kubectl apply -k .
 
 ```
 WGP/
-├── README.md                 # Este archivo
-├── .gitignore                # Archivos ignorados por Git
+├── README.md                          # Este archivo
+├── .gitignore                         # Archivos ignorados por Git
 │
-├── Nginx-Docker/             # 🐳 Despliegue con Docker Compose
+├── Web_Metric_Collector_Docker/       # 🐳 Despliegue con Docker Compose
 │   ├── docker-compose.yml
 │   ├── env.example
 │   ├── README.md
 │   ├── filebeat/
 │   ├── grafana/
-│   ├── log-processor/        # Soporta Nginx + Apache
+│   ├── log-processor/                 # Soporta Nginx + Apache
 │   ├── logstash/
 │   ├── nginx/
 │   ├── nginx-server/
 │   ├── postgres/
 │   └── scripts/
 │
-└── Nginx-K8S/                # ☸️ Despliegue en Kubernetes
+└── Web_Metric_Collector_K8S/          # ☸️ Despliegue en Kubernetes
     ├── README.md
     ├── kustomization.yaml
     ├── namespace.yaml
@@ -180,7 +180,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ```bash
 # Copiar script al servidor Nginx
-scp Nginx-Docker/nginx-server/install-filebeat.sh usuario@servidor:/tmp/
+scp Web_Metric_Collector_Docker/nginx-server/install-filebeat.sh usuario@servidor:/tmp/
 
 # Ejecutar en el servidor
 sudo /tmp/install-filebeat.sh IP_SERVIDOR_WGP
@@ -271,7 +271,7 @@ Para obtener datos de geolocalización:
 
 **Docker:**
 ```bash
-cd Nginx-Docker
+cd Web_Metric_Collector_Docker
 MAXMIND_LICENSE_KEY=tu_clave ./scripts/download-geoip.sh
 docker compose restart log-processor
 ```
@@ -357,7 +357,7 @@ sudo filebeat test output
 
 ```bash
 # Docker
-ls -la Nginx-Docker/log-processor/geoip/
+ls -la Web_Metric_Collector_Docker/log-processor/geoip/
 docker compose restart log-processor
 
 # Kubernetes
@@ -380,14 +380,14 @@ tail -1 /var/log/apache2/access.log
 ### Generar tráfico de prueba
 
 ```bash
-cd Nginx-Docker
+cd Web_Metric_Collector_Docker
 ./scripts/generate-test-traffic.sh
 ```
 
 ### Construir imagen del log-processor
 
 ```bash
-cd Nginx-Docker/log-processor
+cd Web_Metric_Collector_Docker/log-processor
 docker build -t wgp-log-processor:latest .
 ```
 

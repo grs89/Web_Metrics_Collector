@@ -151,6 +151,10 @@ temp/
 data/
 **/data/
 !**/postgres/init/
+logstash_data/
+postgres_data/
+logstash_logs/
+grafana_data/
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Grafana

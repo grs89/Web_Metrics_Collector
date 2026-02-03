@@ -6,20 +6,20 @@ services:
     image: docker.elastic.co/logstash/logstash:8.11.1
     container_name: wgp-logstash
     ports:
-      - "5044:5044"      # Filebeat input
-      - "5000:5000/tcp"  # TCP input (alternative)
-      - "5000:5000/udp"  # UDP input (alternative)
+      - "5044:5044" # Filebeat input
+      - "5001:5000/tcp" # TCP input (alternative)
+      - "5001:5000/udp" # UDP input (alternative)
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-      - logstash_data:/usr/share/logstash/data
+      - ./logstash_data:/usr/share/logstash/data
     environment:
       LS_JAVA_OPTS: "-Xmx512m -Xms512m"
     networks:
       - wgp-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9600"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9600" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -35,7 +35,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wgp_secure_password_2024}
       POSTGRES_DB: ${POSTGRES_DB:-web_logs}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
@@ -43,7 +43,7 @@ services:
       - wgp-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wgp_user} -d ${POSTGRES_DB:-web_logs}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wgp_user} -d ${POSTGRES_DB:-web_logs}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,7 +67,7 @@ services:
       GEOIP_DB: /app/geoip/GeoLite2-City.mmdb
       DEFAULT_SERVER_TYPE: ${DEFAULT_SERVER_TYPE:-nginx}
     volumes:
-      - logstash_logs:/var/log/webserver:ro
+      - ./logstash_logs:/var/log/webserver:ro
       - ./log-processor/geoip:/app/geoip:ro
     depends_on:
       postgres:
@@ -91,11 +91,11 @@ services:
       GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
-      - grafana_data:/var/lib/grafana
+      - ./grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,7 +115,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wgp_secure_password_2024}
       POSTGRES_DB: ${POSTGRES_DB:-web_logs}
       PGPASSWORD: ${POSTGRES_PASSWORD:-wgp_secure_password_2024}
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         echo "Retention manager started - will clean data older than 1 year every day at 3 AM"
@@ -145,12 +145,12 @@ networks:
     driver: bridge
     name: wgp-network
 
-volumes:
-  postgres_data:
-    name: wgp-postgres-data
-  grafana_data:
-    name: wgp-grafana-data
-  logstash_data:
-    name: wgp-logstash-data
-  logstash_logs:
-    name: wgp-logstash-logs
+#volumes:
+#  postgres_data:
+#    name: wgp-postgres-data
+#  grafana_data:
+#    name: wgp-grafana-data
+#  logstash_data:
+#    name: wgp-logstash-data
+#  logstash_logs:
+#    name: wgp-logstash-logs
