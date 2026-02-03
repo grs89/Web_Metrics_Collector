@@ -1,63 +1,63 @@
 # Web Geo Profiler (WMC)
 
-WMC is a centralized log monitoring system that visualizes web traffic geographically and by volume. It polls remote Nginx/Apache servers via SSH, parses logs, enriches them with GeoIP data, and stores them in PostgreSQL for visualization in Grafana.
+WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfico web geográficamente y por volumen. Consulta servidores remotos Nginx/Apache vía SSH, analiza los registros, los enriquece con datos GeoIP y los almacena en PostgreSQL para su visualización en Grafana.
 
-## Features
-- **Agentless**: Uses SSH to read logs (no install required on remote servers).
-- **Enrichment**: Adds City/Country/Lat/Lon to every request.
-- **Security Intelligence**:
-  - **Fake Googlebot Detection**: Blocks IPs pretending to be Googlebot.
-  - **Fail2Ban Lite**: Auto-bans IPs engaging in malicious activity.
-  - **Threat Monitoring**: Visualizes SQLi, XSS, and error spikes.
-- **Advanced Networking**:
-  - **Reverse DNS**: Resolves IPs to Hostnames (cached).
-  - **Animated Traffic Map**: Live 3D visualization of traffic flow.
-- **Data Retention**: Auto-cleanup of logs older than 1 year.
-- **Analytics**: Browser, OS, and Device breakdown.
-- **Visualization**: Pre-configured Grafana Dashboard with Worldmap.
-- **Support**: Nginx (JSON) and Apache (Combined Log Format).
+## Características
+- **Sin Agentes**: Utiliza SSH para leer registros (no requiere instalación en servidores remotos).
+- **Enriquecimiento**: Agrega Ciudad/País/Latitud/Longitud a cada petición.
+- **Inteligencia de Seguridad**:
+  - **Detección de Falsos Googlebot**: Bloquea IPs que pretenden ser Googlebot.
+  - **Fail2Ban Lite**: Bloqueo automático de IPs con actividad maliciosa.
+  - **Monitoreo de Amenazas**: Visualiza picos de SQLi, XSS y errores.
+- **Redes Avanzadas**:
+  - **DNS Inverso**: Resuelve IPs a nombres de host (con caché).
+  - **Mapa de Tráfico Animado**: Visualización 3D en vivo del flujo de tráfico.
+- **Retención de Datos**: Limpieza automática de registros con más de 1 año.
+- **Analítica**: Desglose por Navegador, Sistema Operativo y Dispositivo.
+- **Visualización**: Dashboard de Grafana preconfigurado con Mapa Mundial.
+- **Soporte**: Nginx (JSON) y Apache (Formato de Registro Combinado).
 
-## Quick Start (Local Docker Compose)
+## Inicio Rápido (Docker Compose Local)
 
-1. **Prerequisites**: Docker & Docker Compose.
-2. **Setup SSH Keys**: Ensure you have SSH keys that can access your target servers. Mount them in `docker-compose.yml` or place in a folder.
-3. **Configure Hosts**: Edit `hosts.yml` to define your servers.
+1. **Prerrequisitos**: Docker y Docker Compose.
+2. **Configurar Llaves SSH**: Asegúrate de tener llaves SSH que puedan acceder a tus servidores objetivo. Móntalas en `docker-compose.yml` o colócalas en una carpeta.
+3. **Configurar Hosts**: Edita `hosts.yml` para definir tus servidores.
    ```yaml
    hosts:
-     - name: "my-web-server"
+     - name: "mi-servidor-web"
        host: "1.2.3.4"
        user: "root"
-       key_path: "/ssh_keys/id_rsa" # Path inside the container
+       key_path: "/ssh_keys/id_rsa" # Ruta dentro del contenedor
        log_files:
          - path: "/var/log/nginx/access.log"
            type: "nginx-json"
    ```
-4. **GeoIP Database**: Place `GeoLite2-City.mmdb` in `log_processor/` (optional, but needed for maps).
-5. **Run**:
+4. **Base de Datos GeoIP**: Coloca `GeoLite2-City.mmdb` en `log_processor/` (opcional, pero necesario para los mapas).
+5. **Ejecutar**:
    ```bash
    docker-compose up -d --build
    ```
-6. **Access Grafana**: Open `http://localhost:3000` (User: `admin` / Password: `admin`). The dashboard "WMC Dashboard" is pre-loaded.
+6. **Acceder a Grafana**: Abre `http://localhost:3000` (Usuario: `admin` / Contraseña: `admin`). El dashboard "WMC Dashboard" está precargado.
 
-## Onboarding a New Server
+## Incorporar un Nuevo Servidor
 
-To add a new server to the monitoring pool:
+Para agregar un nuevo servidor al pool de monitoreo:
 
-1. **SSH Access**: Ensure the machine running WMC has SSH public key access to the target server.
-2. **Log Format**: 
-   - If using **Nginx**, configure it to output JSON logs (recommended) or use standard combined.
-   - If using **Apache**, ensure `Combined Log Format`.
-3. **Update Config**: Add the entry to `hosts.yml` as shown above.
-4. **Restart**: Restart the log processor container to pick up changes.
+1. **Acceso SSH**: Asegúrate de que la máquina que ejecuta WMC tenga acceso mediante llave pública SSH al servidor objetivo.
+2. **Formato de Registro**:
+   - Si usas **Nginx**, configúralo para generar registros JSON (recomendado) o usa el formato combinado estándar.
+   - Si usas **Apache**, asegúrate de usar el `Combined Log Format`.
+3. **Actualizar Configuración**: Agrega la entrada a `hosts.yml` como se muestra arriba.
+4. **Reiniciar**: Reinicia el contenedor del procesador de registros para aplicar los cambios.
    ```bash
    docker-compose restart log-processor
    ```
 
-## Production Deployment (Kubernetes)
-Manifests are located in `k8s/`.
-1. Update `k8s/configmap.yaml` (generated via Kustomize) with your real `hosts.yml`.
-2. Create offsets/secrets for SSH keys.
-3. Apply:
+## Despliegue en Producción (Kubernetes)
+Los manifiestos se encuentran en `k8s/`.
+1. Actualiza `k8s/configmap.yaml` (generado vía Kustomize) con tu `hosts.yml` real.
+2. Crea offsets/secretos para las llaves SSH.
+3. Aplica:
    ```bash
    kubectl apply -k k8s/
    ```
