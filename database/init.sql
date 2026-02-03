@@ -47,3 +47,12 @@ SELECT
     count(*) as count
 FROM web_access_logs
 GROUP BY 1, 2;
+
+CREATE TABLE IF NOT EXISTS blocked_ips (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ip_address INET NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ
+);
+
