@@ -52,7 +52,7 @@
                     "rawSql": "SELECT city, MAX(latitude) as latitude, MAX(longitude) as longitude, count(*) as request_count FROM web_access_logs WHERE $__timeFilter(timestamp) AND latitude IS NOT NULL AND longitude IS NOT NULL AND source_host IN ($host) GROUP BY city ORDER BY 4 DESC LIMIT 100"
                 }
             ],
-            "title": "Global Traffic Map (Live)",
+            "title": "🌍 Global Traffic Map (Live)",
             "type": "volkovlabs-echarts-panel"
         },
         {
@@ -144,7 +144,7 @@
                     "rawSql": "SELECT $__timeGroup(timestamp, '1m') as time, count(*) as req_per_min FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 1"
                 }
             ],
-            "title": "Requests Per Minute",
+            "title": "📈 Requests Per Minute",
             "type": "timeseries"
         },
         {
@@ -182,7 +182,7 @@
                     "rawSql": "SELECT client_ip, country_code, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 10"
                 }
             ],
-            "title": "Top 10 Client IPs",
+            "title": "🔝 Top 10 Client IPs",
             "type": "table"
         },
         {
@@ -220,7 +220,7 @@
                     "rawSql": "SELECT source_host, uri, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 10"
                 }
             ],
-            "title": "Top 10 URIs",
+            "title": "🔗 Top 10 URIs",
             "type": "table"
         },
         {
@@ -287,7 +287,7 @@
                     "rawSql": "SELECT COALESCE(browser, 'Unknown') as metric, count(*) as value FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY COALESCE(browser, 'Unknown') ORDER BY 2 DESC"
                 }
             ],
-            "title": "Browser Distribution",
+            "title": "🧭 Browser Distribution",
             "type": "piechart"
         },
         {
@@ -354,7 +354,7 @@
                     "rawSql": "SELECT COALESCE(os, 'Unknown') as metric, count(*) as value FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY COALESCE(os, 'Unknown') ORDER BY 2 DESC"
                 }
             ],
-            "title": "OS Distribution",
+            "title": "💻 OS Distribution",
             "type": "piechart"
         },
         {
@@ -365,7 +365,7 @@
                 "y": 32
             },
             "id": 7,
-            "title": "Security & Threats",
+            "title": "🛡️ Security & Threats",
             "type": "row"
         },
         {
@@ -403,7 +403,7 @@
                     "rawSql": "SELECT timestamp, source_host, client_ip, uri FROM web_access_logs WHERE $__timeFilter(timestamp) AND (uri ILIKE '%union%select%' OR uri ILIKE '%eval(%' OR uri ILIKE '%/etc/passwd%' OR uri ILIKE '%<script>%') ORDER BY timestamp DESC LIMIT 20"
                 }
             ],
-            "title": "Potential Attack Signatures",
+            "title": "⚠️ Potential Attack Signatures",
             "type": "table"
         },
         {
@@ -495,7 +495,7 @@
                     "rawSql": "SELECT $__timeGroup(timestamp, '5m') as time, status_code::text, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND status_code IN (403, 404, 500) GROUP BY 1, 2 ORDER BY 1"
                 }
             ],
-            "title": "Error Rates (404/403/500)",
+            "title": "❌ Error Rates (404/403/500)",
             "type": "timeseries"
         },
         {
@@ -533,7 +533,7 @@
                     "rawSql": "SELECT user_agent, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND (user_agent ILIKE '%bot%' OR user_agent ILIKE '%crawl%' OR user_agent ILIKE '%python%' OR user_agent ILIKE '%curl%') GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
                 }
             ],
-            "title": "Bot Traffic (User-Agents)",
+            "title": "🤖 Bot Traffic (User-Agents)",
             "type": "table"
         },
         {
@@ -571,7 +571,7 @@
                     "rawSql": "SELECT ip_address, reason, created_at FROM blocked_ips ORDER BY created_at DESC"
                 }
             ],
-            "title": "Blocked IPs (Fail2Ban Lite)",
+            "title": "🚫 Blocked IPs (Fail2Ban Lite)",
             "type": "table"
         },
         {
@@ -635,7 +635,7 @@
                     "rawSql": "SELECT count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND is_fake_bot = TRUE"
                 }
             ],
-            "title": "Fake Bots Detected",
+            "title": "🧟 Fake Bots Detected",
             "type": "stat"
         }
     ],
@@ -675,7 +675,7 @@
     },
     "timepicker": {},
     "timezone": "",
-    "title": "WMC Dashboard",
+    "title": "🌐 WMC Dashboard",
     "uid": "wmc-main-v1",
     "version": 1,
     "weekStart": ""
