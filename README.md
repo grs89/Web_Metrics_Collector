@@ -1,6 +1,10 @@
 # Web Geo Profiler (WMC)
 
+[Ler em Português](README_PT.md)
+
 WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfico web geográficamente y por volumen. Consulta servidores remotos Nginx/Apache vía SSH, analiza los registros, los enriquece con datos GeoIP y los almacena en PostgreSQL para su visualización en Grafana.
+
+![Dashboard Screenshot](docs/images/dashboard_screenshot.png)
 
 ## Características
 - **Sin Agentes**: Utiliza SSH para leer registros (no requiere instalación en servidores remotos).
