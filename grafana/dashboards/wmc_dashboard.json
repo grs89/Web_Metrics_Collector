@@ -217,7 +217,7 @@
                     "format": "table",
                     "rawQuery": true,
                     "refId": "A",
-                    "rawSql": "SELECT uri, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+                    "rawSql": "SELECT source_host, uri, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 10"
                 }
             ],
             "title": "Top 10 URIs",
