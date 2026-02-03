@@ -1,11 +1,13 @@
-# 🌍 NGP - Nginx Geo Profiler
+# 🌐 WGP - Web Geo Profiler
 
-Sistema completo de monitoreo y análisis de logs de acceso de Nginx con geolocalización, métricas en tiempo real y visualización en Grafana. Diseñado para recibir logs de servidores Nginx remotos mediante **Filebeat**.
+Sistema completo de monitoreo y análisis de logs de acceso de servidores web con geolocalización, métricas en tiempo real y visualización en Grafana. Diseñado para recibir logs de **Nginx** y **Apache** remotos mediante **Filebeat**.
 
 ![Grafana Dashboard](https://img.shields.io/badge/Grafana-Dashboard-orange?style=for-the-badge&logo=grafana)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=for-the-badge&logo=postgresql)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue?style=for-the-badge&logo=docker)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-Ready-326CE5?style=for-the-badge&logo=kubernetes)
+![Nginx](https://img.shields.io/badge/Nginx-Supported-009639?style=for-the-badge&logo=nginx)
+![Apache](https://img.shields.io/badge/Apache-Supported-D22128?style=for-the-badge&logo=apache)
 ![Filebeat](https://img.shields.io/badge/Filebeat-8.x-yellow?style=for-the-badge&logo=elastic)
 
 ## ✨ Características
@@ -18,7 +20,15 @@ Sistema completo de monitoreo y análisis de logs de acceso de Nginx con geoloca
 - ⏱️ **Percentiles de latencia** - P95, P99 para monitoreo de rendimiento
 - 🐳 **Docker Compose** - Despliegue simple para desarrollo y servidores individuales
 - ☸️ **Kubernetes** - Despliegue escalable para producción
-- 📡 **Filebeat** - Recibe logs de servidores Nginx remotos
+- 📡 **Filebeat** - Recibe logs de servidores web remotos
+- 🔧 **Multi-servidor** - Soporta **Nginx** y **Apache** simultáneamente
+
+## 🖥️ Servidores Web Soportados
+
+| Servidor | Formatos de Log | Auto-detección |
+|----------|-----------------|----------------|
+| **Nginx** | JSON | ✅ Sí |
+| **Apache** | JSON, Combined Log Format | ✅ Sí |
 
 ## 📦 Opciones de Despliegue
 
@@ -31,10 +41,11 @@ Sistema completo de monitoreo y análisis de logs de acceso de Nginx con geoloca
 
 ```
 ┌─────────────────────────────┐         ┌─────────────────────────────────────────┐
-│   SERVIDOR NGINX REMOTO     │         │           SERVIDOR NGP                  │
-│                             │         │       (Docker / Kubernetes)             │
-│  Nginx ──▶ Filebeat ────────────────▶ Logstash ──▶ Log Processor ──▶ PostgreSQL│
-│         (logs JSON)         │  :5044  │                  + GeoIP        │       │
+│   SERVIDOR WEB REMOTO       │         │           SERVIDOR WGP                  │
+│   (Nginx / Apache)          │         │       (Docker / Kubernetes)             │
+│                             │         │                                         │
+│  WebServer ──▶ Filebeat ────────────▶ Logstash ──▶ Log Processor ──▶ PostgreSQL│
+│           (logs JSON)       │  :5044  │                  + GeoIP        │       │
 └─────────────────────────────┘         │                                 ▼       │
                                         │                             Grafana     │
                                         │                              :3000      │
@@ -71,7 +82,7 @@ kubectl apply -k .
 ## 📁 Estructura del Proyecto
 
 ```
-NGP/
+WGP/
 ├── README.md                 # Este archivo
 ├── .gitignore                # Archivos ignorados por Git
 │
@@ -81,7 +92,7 @@ NGP/
 │   ├── README.md
 │   ├── filebeat/
 │   ├── grafana/
-│   ├── log-processor/
+│   ├── log-processor/        # Soporta Nginx + Apache
 │   ├── logstash/
 │   ├── nginx/
 │   ├── nginx-server/
@@ -117,10 +128,11 @@ NGP/
 El dashboard incluye:
 
 ### Métricas Principales
-- Total de requests (24h)
+- Total de requests (24h) - Nginx y Apache
 - IPs únicas
 - Países de origen
 - Tiempo de respuesta promedio
+- **Filtro por tipo de servidor** (Nginx/Apache)
 
 ### Visualizaciones
 - 📈 **Requests Over Time** - Gráfico temporal de requests
@@ -128,6 +140,7 @@ El dashboard incluye:
 - 🗺️ **Geomap** - Mapa mundial con ubicaciones de visitantes
 - 📋 **Top Tables** - IPs, países, URIs más frecuentes
 - ⏱️ **Response Time** - Percentiles P95/P99
+- 🖥️ **Server Summary** - Comparación entre Nginx y Apache
 
 ## 📡 Configurar Servidor Nginx Remoto
 
@@ -163,26 +176,41 @@ http {
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### 2. Instalar Filebeat
-
-**Script automático:**
+### 2. Instalar Filebeat para Nginx
 
 ```bash
 # Copiar script al servidor Nginx
 scp Nginx-Docker/nginx-server/install-filebeat.sh usuario@servidor:/tmp/
 
 # Ejecutar en el servidor
-sudo /tmp/install-filebeat.sh IP_SERVIDOR_NGP
+sudo /tmp/install-filebeat.sh IP_SERVIDOR_WGP
 ```
 
-**Manual:**
+## 📡 Configurar Servidor Apache Remoto
+
+### 1. Configurar formato de logs JSON en Apache
+
+Edita tu `/etc/apache2/apache2.conf` o `/etc/httpd/conf/httpd.conf`:
+
+```apache
+# Habilitar mod_log_config si no está habilitado
+LoadModule log_config_module modules/mod_log_config.so
+
+# Formato JSON para WGP
+LogFormat "{ \"timestamp\":\"%{%Y-%m-%dT%H:%M:%S%z}t\", \"remote_addr\":\"%a\", \"remote_user\":\"%u\", \"request_method\":\"%m\", \"request_uri\":\"%U%q\", \"request\":\"%r\", \"status\":%>s, \"body_bytes_sent\":%B, \"request_time\":%D, \"http_referer\":\"%{Referer}i\", \"http_user_agent\":\"%{User-Agent}i\", \"http_x_forwarded_for\":\"%{X-Forwarded-For}i\", \"host\":\"%v\", \"log_type\":\"apache_access\" }" wgp_json
+
+CustomLog /var/log/apache2/access.log wgp_json
+```
 
 ```bash
 # Debian/Ubuntu
-wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /usr/share/keyrings/elastic-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/elastic-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main" | sudo tee /etc/apt/sources.list.d/elastic-8.x.list
-sudo apt update && sudo apt install filebeat
+sudo apache2ctl configtest && sudo systemctl reload apache2
+
+# RHEL/CentOS
+sudo apachectl configtest && sudo systemctl reload httpd
 ```
+
+### 2. Instalar Filebeat para Apache
 
 Configurar `/etc/filebeat/filebeat.yml`:
 
@@ -191,20 +219,46 @@ filebeat.inputs:
   - type: log
     enabled: true
     paths:
-      - /var/log/nginx/access.log
+      - /var/log/apache2/access.log    # Debian/Ubuntu
+      # - /var/log/httpd/access_log    # RHEL/CentOS
     json.keys_under_root: true
     json.add_error_key: true
     fields:
-      log_type: nginx_access
+      log_type: apache_access
     fields_under_root: true
 
 output.logstash:
-  hosts: ["IP_SERVIDOR_NGP:5044"]
+  hosts: ["IP_SERVIDOR_WGP:5044"]
 ```
 
 ```bash
 sudo systemctl enable filebeat
 sudo systemctl start filebeat
+```
+
+### Formato Combined Log (alternativo)
+
+Si prefieres el formato tradicional de Apache, WGP también lo soporta:
+
+```apache
+LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+CustomLog /var/log/apache2/access.log combined
+```
+
+Configurar Filebeat sin JSON parsing:
+
+```yaml
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/apache2/access.log
+    fields:
+      log_type: apache_access
+    fields_under_root: true
+
+output.logstash:
+  hosts: ["IP_SERVIDOR_WGP:5044"]
 ```
 
 ## 🌍 GeoIP (Opcional)
@@ -227,7 +281,7 @@ docker compose restart log-processor
 # Descargar y crear ConfigMap
 kubectl create configmap geoip-data \
   --from-file=GeoLite2-City.mmdb=./GeoLite2-City.mmdb \
-  -n ngp
+  -n wgp
 ```
 
 ## 🔒 Seguridad en Producción
@@ -241,23 +295,38 @@ kubectl create configmap geoip-data \
 ## 🔍 Consultas SQL Útiles
 
 ```sql
--- Ver últimos logs
-SELECT * FROM nginx_access_logs 
+-- Ver últimos logs (ambos servidores)
+SELECT server_type, * FROM web_access_logs 
 ORDER BY timestamp DESC LIMIT 100;
 
--- Requests por país (últimas 24h)
-SELECT country_name, COUNT(*) as requests
-FROM nginx_access_logs
+-- Requests por servidor web (últimas 24h)
+SELECT server_type, COUNT(*) as requests
+FROM web_access_logs
 WHERE timestamp > NOW() - INTERVAL '24 hours'
-GROUP BY country_name
+GROUP BY server_type;
+
+-- Requests por país y servidor (últimas 24h)
+SELECT server_type, country_name, COUNT(*) as requests
+FROM web_access_logs
+WHERE timestamp > NOW() - INTERVAL '24 hours'
+GROUP BY server_type, country_name
 ORDER BY requests DESC;
 
--- IPs con más errores
-SELECT remote_addr, COUNT(*) as errors
-FROM nginx_access_logs
+-- IPs con más errores por servidor
+SELECT server_type, remote_addr, COUNT(*) as errors
+FROM web_access_logs
 WHERE status >= 400
-GROUP BY remote_addr
+GROUP BY server_type, remote_addr
 ORDER BY errors DESC LIMIT 20;
+
+-- Comparación de tiempos de respuesta
+SELECT server_type, 
+       AVG(request_time) as avg_time,
+       PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY request_time) as p95,
+       PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY request_time) as p99
+FROM web_access_logs
+WHERE timestamp > NOW() - INTERVAL '24 hours'
+GROUP BY server_type;
 
 -- Ejecutar limpieza manual
 SELECT cleanup_old_logs(365);
@@ -269,7 +338,7 @@ SELECT cleanup_old_logs(365);
 
 ```bash
 # Verificar conectividad
-telnet IP_SERVIDOR_NGP 5044
+telnet IP_SERVIDOR_WGP 5044
 
 # Ver logs de Filebeat
 sudo tail -f /var/log/filebeat/filebeat
@@ -280,9 +349,9 @@ sudo filebeat test output
 
 ### No aparecen datos en Grafana
 
-1. Verificar Logstash: `docker compose logs -f logstash` o `kubectl logs -f deployment/logstash -n ngp`
-2. Verificar log-processor: `docker compose logs -f log-processor` o `kubectl logs -f deployment/log-processor -n ngp`
-3. Verificar formato JSON en Nginx
+1. Verificar Logstash: `docker compose logs -f logstash` o `kubectl logs -f deployment/logstash -n wgp`
+2. Verificar log-processor: `docker compose logs -f log-processor` o `kubectl logs -f deployment/log-processor -n wgp`
+3. Verificar formato JSON en servidor web
 
 ### GeoIP no funciona
 
@@ -292,8 +361,18 @@ ls -la Nginx-Docker/log-processor/geoip/
 docker compose restart log-processor
 
 # Kubernetes
-kubectl describe configmap geoip-data -n ngp
-kubectl rollout restart deployment/log-processor -n ngp
+kubectl describe configmap geoip-data -n wgp
+kubectl rollout restart deployment/log-processor -n wgp
+```
+
+### Logs de Apache no se procesan
+
+```bash
+# Verificar formato de log
+tail -1 /var/log/apache2/access.log
+
+# Si es JSON, debe empezar con {
+# Si es Combined, debe verse como: 192.168.1.1 - - [02/Feb/2024:10:30:00 +0000] "GET / HTTP/1.1" 200 1234
 ```
 
 ## 🛠️ Desarrollo
@@ -309,7 +388,7 @@ cd Nginx-Docker
 
 ```bash
 cd Nginx-Docker/log-processor
-docker build -t ngp-log-processor:latest .
+docker build -t wgp-log-processor:latest .
 ```
 
 ## 📄 Licencia
@@ -319,6 +398,5 @@ MIT License - Usar libremente para proyectos personales y comerciales.
 ---
 
 <p align="center">
-  Hecho con ❤️ para monitorear tus servidores Nginx
+  Hecho con ❤️ para monitorear tus servidores Nginx y Apache
 </p>
-

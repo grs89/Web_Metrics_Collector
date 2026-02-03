@@ -1,15 +1,16 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# NGP - Nginx Geo Profiler - Retention Manager CronJob
+# WGP - Web Geo Profiler - Retention Manager CronJob
+# Supports: Nginx, Apache
 # ═══════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: retention-manager
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: retention-manager
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 spec:
   # Ejecutar todos los días a las 3 AM
   schedule: "0 3 * * *"
@@ -35,17 +36,17 @@ spec:
                 - name: PGUSER
                   valueFrom:
                     secretKeyRef:
-                      name: ngp-secrets
+                      name: wgp-secrets
                       key: POSTGRES_USER
                 - name: PGPASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: ngp-secrets
+                      name: wgp-secrets
                       key: POSTGRES_PASSWORD
                 - name: PGDATABASE
                   valueFrom:
                     secretKeyRef:
-                      name: ngp-secrets
+                      name: wgp-secrets
                       key: POSTGRES_DB
                 - name: RETENTION_DAYS
                   value: "365"
@@ -58,16 +59,16 @@ spec:
                   # Ejecutar limpieza
                   psql -c "
                     SELECT 'Before cleanup: ' || COUNT(*) || ' records' 
-                    FROM nginx_access_logs;
+                    FROM web_access_logs;
                     
-                    DELETE FROM nginx_access_logs 
+                    DELETE FROM web_access_logs 
                     WHERE timestamp < NOW() - INTERVAL '${RETENTION_DAYS} days';
                     
-                    DELETE FROM nginx_metrics_hourly 
+                    DELETE FROM web_metrics_hourly 
                     WHERE hour < NOW() - INTERVAL '${RETENTION_DAYS} days';
                     
                     SELECT 'After cleanup: ' || COUNT(*) || ' records' 
-                    FROM nginx_access_logs;
+                    FROM web_access_logs;
                   "
                   
                   echo "[$(date)] Retention cleanup completed!"
@@ -78,4 +79,3 @@ spec:
                 limits:
                   memory: "256Mi"
                   cpu: "200m"
-

@@ -1,5 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# NGP - Nginx Geo Profiler - Ingress (Opcional)
+# WGP - Web Geo Profiler - Ingress (Opcional)
+# Supports: Nginx, Apache
 # ═══════════════════════════════════════════════════════════════════════════
 # Requiere un Ingress Controller instalado (nginx-ingress, traefik, etc.)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -7,11 +8,11 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ngp-ingress
-  namespace: ngp
+  name: wgp-ingress
+  namespace: wgp
   labels:
-    app.kubernetes.io/name: ngp-ingress
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/name: wgp-ingress
+    app.kubernetes.io/part-of: web-geo-profiler
   annotations:
     # Para nginx-ingress controller
     kubernetes.io/ingress.class: nginx
@@ -22,7 +23,7 @@ spec:
   # tls:  # Descomentar para HTTPS
   #   - hosts:
   #       - grafana.tu-dominio.com
-  #     secretName: ngp-tls-secret
+  #     secretName: wgp-tls-secret
   rules:
     - host: grafana.tu-dominio.com  # Cambiar por tu dominio
       http:
@@ -41,10 +42,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: logstash-ingress
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: logstash-ingress
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
   annotations:
     kubernetes.io/ingress.class: nginx
     # Para TCP/UDP necesitarás configurar el ingress controller especialmente
@@ -61,4 +62,3 @@ spec:
                 name: logstash-service
                 port:
                   number: 5044
-

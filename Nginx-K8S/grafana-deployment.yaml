@@ -1,15 +1,16 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# NGP - Nginx Geo Profiler - Grafana Deployment
+# WGP - Web Geo Profiler - Grafana Deployment
+# Supports: Nginx, Apache
 # ═══════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: grafana
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 spec:
   replicas: 1
   selector:
@@ -20,7 +21,7 @@ spec:
       labels:
         app: grafana
         app.kubernetes.io/name: grafana
-        app.kubernetes.io/part-of: nginx-geo-profiler
+        app.kubernetes.io/part-of: web-geo-profiler
     spec:
       securityContext:
         fsGroup: 472
@@ -48,12 +49,12 @@ spec:
             - name: GF_SECURITY_ADMIN_USER
               valueFrom:
                 secretKeyRef:
-                  name: ngp-secrets
+                  name: wgp-secrets
                   key: GRAFANA_USER
             - name: GF_SECURITY_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ngp-secrets
+                  name: wgp-secrets
                   key: GRAFANA_PASSWORD
             - name: GF_INSTALL_PLUGINS
               value: "grafana-worldmap-panel,grafana-clock-panel,grafana-piechart-panel"
@@ -64,7 +65,7 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ngp-secrets
+                  name: wgp-secrets
                   key: POSTGRES_PASSWORD
           volumeMounts:
             - name: grafana-data
@@ -111,10 +112,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grafana-service
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: grafana
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 spec:
   type: LoadBalancer  # Cambiar a NodePort o ClusterIP + Ingress según necesidad
   ports:
@@ -123,4 +124,3 @@ spec:
       name: http
   selector:
     app: grafana
-

@@ -1,15 +1,16 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# NGP - Nginx Geo Profiler - ConfigMaps
+# WGP - Web Geo Profiler - ConfigMaps
+# Supports: Nginx, Apache
 # ═══════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: logstash-config
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: logstash
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 data:
   logstash.yml: |
     http.host: "0.0.0.0"
@@ -18,7 +19,7 @@ data:
     pipeline.batch.size: 125
     pipeline.batch.delay: 50
   
-  nginx.conf: |
+  webserver.conf: |
     input {
       beats {
         port => 5044
@@ -37,32 +38,69 @@ data:
     }
     
     filter {
-      if [message] =~ /^\{.*\}$/ {
-        json {
-          source => "message"
-          target => "nginx"
+      # Default server type
+      if ![log_type] {
+        mutate {
+          add_field => { "log_type" => "nginx_access" }
         }
       }
       
-      if [nginx][timestamp] {
+      # Parse JSON logs (Nginx/Apache)
+      if [message] =~ /^\{.*\}$/ {
+        json {
+          source => "message"
+          target => "weblog"
+        }
+      }
+      
+      # Parse Apache Combined Log Format
+      if ![weblog] and [log_type] =~ /apache/ {
+        grok {
+          match => { 
+            "message" => '%{IPORHOST:remote_addr} %{USER:ident} %{USER:remote_user} \[%{HTTPDATE:timestamp}\] "(?:%{WORD:request_method} %{NOTSPACE:request_uri}(?: HTTP/%{NUMBER:http_version})?|%{DATA:rawrequest})" %{NUMBER:status} (?:%{NUMBER:body_bytes_sent}|-)( "%{DATA:http_referer}")?( "%{DATA:http_user_agent}")?'
+          }
+          target => "weblog"
+        }
+        
+        if [weblog][timestamp] {
+          date {
+            match => [ "[weblog][timestamp]", "dd/MMM/yyyy:HH:mm:ss Z" ]
+            target => "@timestamp"
+          }
+        }
+      }
+      
+      # Parse Nginx timestamp
+      if [weblog][timestamp] and [log_type] =~ /nginx/ {
         date {
-          match => [ "[nginx][timestamp]", "ISO8601" ]
+          match => [ "[weblog][timestamp]", "ISO8601" ]
           target => "@timestamp"
         }
       }
       
+      # Normalize fields
       mutate {
         add_field => {
-          "log_timestamp" => "%{[nginx][timestamp]}"
-          "remote_addr" => "%{[nginx][remote_addr]}"
-          "request_method" => "%{[nginx][request_method]}"
-          "request_uri" => "%{[nginx][request_uri]}"
-          "status" => "%{[nginx][status]}"
-          "body_bytes_sent" => "%{[nginx][body_bytes_sent]}"
-          "request_time" => "%{[nginx][request_time]}"
-          "http_referer" => "%{[nginx][http_referer]}"
-          "http_user_agent" => "%{[nginx][http_user_agent]}"
-          "http_x_forwarded_for" => "%{[nginx][http_x_forwarded_for]}"
+          "log_timestamp" => "%{[weblog][timestamp]}"
+          "remote_addr" => "%{[weblog][remote_addr]}"
+          "request_method" => "%{[weblog][request_method]}"
+          "request_uri" => "%{[weblog][request_uri]}"
+          "status" => "%{[weblog][status]}"
+          "body_bytes_sent" => "%{[weblog][body_bytes_sent]}"
+          "http_referer" => "%{[weblog][http_referer]}"
+          "http_user_agent" => "%{[weblog][http_user_agent]}"
+        }
+      }
+      
+      if [weblog][request_time] {
+        mutate {
+          add_field => { "request_time" => "%{[weblog][request_time]}" }
+        }
+      }
+      
+      if [weblog][http_x_forwarded_for] {
+        mutate {
+          add_field => { "http_x_forwarded_for" => "%{[weblog][http_x_forwarded_for]}" }
         }
       }
       
@@ -77,7 +115,7 @@ data:
     
     output {
       file {
-        path => "/usr/share/logstash/data/nginx-logs/access.log"
+        path => "/usr/share/logstash/data/webserver-logs/access.log"
         codec => json_lines
       }
     }
@@ -86,20 +124,21 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres-init
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: postgres
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 data:
   01-schema.sql: |
     -- Enable required extensions
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     CREATE EXTENSION IF NOT EXISTS pg_trgm;
     
-    -- Main access logs table
-    CREATE TABLE nginx_access_logs (
+    -- Main access logs table (supports Nginx and Apache)
+    CREATE TABLE web_access_logs (
         id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        server_type     VARCHAR(20) DEFAULT 'nginx',
         remote_addr     INET NOT NULL,
         remote_user     VARCHAR(255),
         request_method  VARCHAR(10),
@@ -135,20 +174,23 @@ data:
     );
     
     -- Indexes
-    CREATE INDEX idx_logs_timestamp ON nginx_access_logs (timestamp DESC);
-    CREATE INDEX idx_logs_timestamp_date ON nginx_access_logs ((timestamp::DATE));
-    CREATE INDEX idx_logs_remote_addr ON nginx_access_logs (remote_addr);
-    CREATE INDEX idx_logs_status ON nginx_access_logs (status);
-    CREATE INDEX idx_logs_country ON nginx_access_logs (country_code);
-    CREATE INDEX idx_logs_geo ON nginx_access_logs (latitude, longitude) WHERE latitude IS NOT NULL;
-    CREATE INDEX idx_logs_uri ON nginx_access_logs USING gin (request_uri gin_trgm_ops);
-    CREATE INDEX idx_logs_timestamp_status ON nginx_access_logs (timestamp DESC, status);
-    CREATE INDEX idx_logs_timestamp_country ON nginx_access_logs (timestamp DESC, country_code);
+    CREATE INDEX idx_logs_timestamp ON web_access_logs (timestamp DESC);
+    CREATE INDEX idx_logs_timestamp_date ON web_access_logs ((timestamp::DATE));
+    CREATE INDEX idx_logs_remote_addr ON web_access_logs (remote_addr);
+    CREATE INDEX idx_logs_status ON web_access_logs (status);
+    CREATE INDEX idx_logs_country ON web_access_logs (country_code);
+    CREATE INDEX idx_logs_geo ON web_access_logs (latitude, longitude) WHERE latitude IS NOT NULL;
+    CREATE INDEX idx_logs_uri ON web_access_logs USING gin (request_uri gin_trgm_ops);
+    CREATE INDEX idx_logs_timestamp_status ON web_access_logs (timestamp DESC, status);
+    CREATE INDEX idx_logs_timestamp_country ON web_access_logs (timestamp DESC, country_code);
+    CREATE INDEX idx_logs_server_type ON web_access_logs (server_type);
+    CREATE INDEX idx_logs_timestamp_server ON web_access_logs (timestamp DESC, server_type);
     
     -- Hourly metrics table
-    CREATE TABLE nginx_metrics_hourly (
+    CREATE TABLE web_metrics_hourly (
         id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         hour            TIMESTAMPTZ NOT NULL,
+        server_type     VARCHAR(20) DEFAULT 'nginx',
         total_requests  BIGINT DEFAULT 0,
         requests_2xx    BIGINT DEFAULT 0,
         requests_3xx    BIGINT DEFAULT 0,
@@ -163,23 +205,25 @@ data:
         unique_ips      INTEGER DEFAULT 0,
         unique_countries INTEGER DEFAULT 0,
         created_at      TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(hour)
+        UNIQUE(hour, server_type)
     );
     
-    CREATE INDEX idx_metrics_hour ON nginx_metrics_hourly (hour DESC);
+    CREATE INDEX idx_metrics_hour ON web_metrics_hourly (hour DESC);
     
     -- Views for Grafana
     CREATE VIEW v_requests_per_second AS
     SELECT 
         date_trunc('second', timestamp) AS time,
+        server_type,
         COUNT(*) AS requests
-    FROM nginx_access_logs
+    FROM web_access_logs
     WHERE timestamp > NOW() - INTERVAL '5 minutes'
-    GROUP BY date_trunc('second', timestamp)
+    GROUP BY date_trunc('second', timestamp), server_type
     ORDER BY time DESC;
     
     CREATE VIEW v_status_distribution AS
     SELECT 
+        server_type,
         CASE 
             WHEN status BETWEEN 200 AND 299 THEN '2xx Success'
             WHEN status BETWEEN 300 AND 399 THEN '3xx Redirect'
@@ -189,25 +233,38 @@ data:
         END AS status_group,
         status,
         COUNT(*) AS count
-    FROM nginx_access_logs
+    FROM web_access_logs
     WHERE timestamp > NOW() - INTERVAL '24 hours'
-    GROUP BY status
+    GROUP BY server_type, status
     ORDER BY count DESC;
     
     CREATE VIEW v_geo_distribution AS
     SELECT 
+        server_type,
         country_code,
         country_name,
         latitude,
         longitude,
         COUNT(*) AS request_count,
         COUNT(DISTINCT remote_addr) AS unique_visitors
-    FROM nginx_access_logs
+    FROM web_access_logs
     WHERE 
         timestamp > NOW() - INTERVAL '24 hours'
         AND latitude IS NOT NULL
-    GROUP BY country_code, country_name, latitude, longitude
+    GROUP BY server_type, country_code, country_name, latitude, longitude
     ORDER BY request_count DESC;
+    
+    CREATE VIEW v_server_summary AS
+    SELECT 
+        server_type,
+        COUNT(*) AS total_requests,
+        COUNT(DISTINCT remote_addr) AS unique_ips,
+        COUNT(DISTINCT country_code) AS unique_countries,
+        AVG(request_time) AS avg_response_time,
+        SUM(body_bytes_sent) AS total_bytes
+    FROM web_access_logs
+    WHERE timestamp > NOW() - INTERVAL '24 hours'
+    GROUP BY server_type;
     
     -- Cleanup function
     CREATE OR REPLACE FUNCTION cleanup_old_logs(retention_days INTEGER DEFAULT 365)
@@ -215,10 +272,10 @@ data:
     DECLARE
         deleted_count INTEGER;
     BEGIN
-        DELETE FROM nginx_access_logs 
+        DELETE FROM web_access_logs 
         WHERE timestamp < NOW() - (retention_days || ' days')::INTERVAL;
         GET DIAGNOSTICS deleted_count = ROW_COUNT;
-        DELETE FROM nginx_metrics_hourly 
+        DELETE FROM web_metrics_hourly 
         WHERE hour < NOW() - (retention_days || ' days')::INTERVAL;
         RETURN deleted_count;
     END;
@@ -235,10 +292,10 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-datasources
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: grafana
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 data:
   datasources.yml: |
     apiVersion: 1
@@ -246,8 +303,8 @@ data:
       - name: PostgreSQL
         type: postgres
         url: postgres-service:5432
-        database: nginx_logs
-        user: ngp_user
+        database: web_logs
+        user: wgp_user
         secureJsonData:
           password: $POSTGRES_PASSWORD
         jsonData:
@@ -263,20 +320,19 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-dashboards-config
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: grafana
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 data:
   dashboards.yml: |
     apiVersion: 1
     providers:
       - name: 'default'
         orgId: 1
-        folder: 'NGP'
+        folder: 'WGP'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30
         options:
           path: /var/lib/grafana/dashboards
-

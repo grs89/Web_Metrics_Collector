@@ -1,15 +1,16 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# NGP - Nginx Geo Profiler - PostgreSQL Deployment
+# WGP - Web Geo Profiler - PostgreSQL Deployment
+# Supports: Nginx, Apache
 # ═══════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: postgres
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 spec:
   replicas: 1
   strategy:
@@ -22,7 +23,7 @@ spec:
       labels:
         app: postgres
         app.kubernetes.io/name: postgres
-        app.kubernetes.io/part-of: nginx-geo-profiler
+        app.kubernetes.io/part-of: web-geo-profiler
     spec:
       containers:
         - name: postgres
@@ -34,17 +35,17 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: ngp-secrets
+                  name: wgp-secrets
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ngp-secrets
+                  name: wgp-secrets
                   key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: ngp-secrets
+                  name: wgp-secrets
                   key: POSTGRES_DB
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
@@ -94,10 +95,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres-service
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: postgres
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 spec:
   type: ClusterIP
   ports:
@@ -106,4 +107,3 @@ spec:
       name: postgres
   selector:
     app: postgres
-

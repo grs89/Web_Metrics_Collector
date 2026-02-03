@@ -1,10 +1,10 @@
 services:
   # ═══════════════════════════════════════════════════════════════════════════
-  # LOGSTASH - Receives logs from Filebeat
+  # LOGSTASH - Receives logs from Filebeat (Nginx/Apache)
   # ═══════════════════════════════════════════════════════════════════════════
   logstash:
     image: docker.elastic.co/logstash/logstash:8.11.1
-    container_name: ngp-logstash
+    container_name: wgp-logstash
     ports:
       - "5044:5044"      # Filebeat input
       - "5000:5000/tcp"  # TCP input (alternative)
@@ -16,7 +16,7 @@ services:
     environment:
       LS_JAVA_OPTS: "-Xmx512m -Xms512m"
     networks:
-      - ngp-network
+      - wgp-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9600"]
@@ -29,43 +29,45 @@ services:
   # ═══════════════════════════════════════════════════════════════════════════
   postgres:
     image: postgres:16-alpine
-    container_name: ngp-postgres
+    container_name: wgp-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-ngp_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ngp_secure_password_2024}
-      POSTGRES_DB: ${POSTGRES_DB:-nginx_logs}
+      POSTGRES_USER: ${POSTGRES_USER:-wgp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wgp_secure_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-web_logs}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     networks:
-      - ngp-network
+      - wgp-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ngp_user} -d ${POSTGRES_DB:-nginx_logs}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wgp_user} -d ${POSTGRES_DB:-web_logs}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # ═══════════════════════════════════════════════════════════════════════════
   # LOG PROCESSOR - Reads from Logstash output and enriches with GeoIP
+  # Supports: Nginx, Apache
   # ═══════════════════════════════════════════════════════════════════════════
   log-processor:
     build:
       context: ./log-processor
       dockerfile: Dockerfile
-    container_name: ngp-log-processor
+    container_name: wgp-log-processor
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-ngp_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ngp_secure_password_2024}
-      POSTGRES_DB: ${POSTGRES_DB:-nginx_logs}
-      LOG_FILE: /var/log/nginx/access.log
+      POSTGRES_USER: ${POSTGRES_USER:-wgp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wgp_secure_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-web_logs}
+      LOG_FILE: /var/log/webserver/access.log
       GEOIP_DB: /app/geoip/GeoLite2-City.mmdb
+      DEFAULT_SERVER_TYPE: ${DEFAULT_SERVER_TYPE:-nginx}
     volumes:
-      - logstash_logs:/var/log/nginx:ro
+      - logstash_logs:/var/log/webserver:ro
       - ./log-processor/geoip:/app/geoip:ro
     depends_on:
       postgres:
@@ -73,7 +75,7 @@ services:
       logstash:
         condition: service_healthy
     networks:
-      - ngp-network
+      - wgp-network
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -81,7 +83,7 @@ services:
   # ═══════════════════════════════════════════════════════════════════════════
   grafana:
     image: grafana/grafana:latest
-    container_name: ngp-grafana
+    container_name: wgp-grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
@@ -98,7 +100,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - ngp-network
+      - wgp-network
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -106,13 +108,13 @@ services:
   # ═══════════════════════════════════════════════════════════════════════════
   retention-manager:
     image: postgres:16-alpine
-    container_name: ngp-retention
+    container_name: wgp-retention
     environment:
       POSTGRES_HOST: postgres
-      POSTGRES_USER: ${POSTGRES_USER:-ngp_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ngp_secure_password_2024}
-      POSTGRES_DB: ${POSTGRES_DB:-nginx_logs}
-      PGPASSWORD: ${POSTGRES_PASSWORD:-ngp_secure_password_2024}
+      POSTGRES_USER: ${POSTGRES_USER:-wgp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wgp_secure_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-web_logs}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-wgp_secure_password_2024}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -120,11 +122,11 @@ services:
         while true; do
           echo "[$(date)] Running retention cleanup..."
           psql -h postgres -U $${POSTGRES_USER} -d $${POSTGRES_DB} -c "
-            DELETE FROM nginx_access_logs 
+            DELETE FROM web_access_logs 
             WHERE timestamp < NOW() - INTERVAL '1 year';
             
             SELECT 'Deleted ' || COUNT(*) || ' old records' 
-            FROM nginx_access_logs 
+            FROM web_access_logs 
             WHERE timestamp < NOW() - INTERVAL '1 year';
           " 2>/dev/null || echo "Database not ready yet"
           
@@ -135,20 +137,20 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - ngp-network
+      - wgp-network
     restart: unless-stopped
 
 networks:
-  ngp-network:
+  wgp-network:
     driver: bridge
-    name: ngp-network
+    name: wgp-network
 
 volumes:
   postgres_data:
-    name: ngp-postgres-data
+    name: wgp-postgres-data
   grafana_data:
-    name: ngp-grafana-data
+    name: wgp-grafana-data
   logstash_data:
-    name: ngp-logstash-data
+    name: wgp-logstash-data
   logstash_logs:
-    name: ngp-logstash-logs
+    name: wgp-logstash-logs

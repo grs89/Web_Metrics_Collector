@@ -1,12 +1,13 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# NGP - Nginx Geo Profiler - Kustomization
+# WGP - Web Geo Profiler - Kustomization
+# Supports: Nginx, Apache
 # ═══════════════════════════════════════════════════════════════════════════
 # Permite desplegar todos los recursos con: kubectl apply -k .
 # ═══════════════════════════════════════════════════════════════════════════
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: ngp
+namespace: wgp
 
 resources:
   - namespace.yaml
@@ -32,4 +33,3 @@ images:
     newTag: 8.11.1
   - name: grafana/grafana
     newTag: latest
-

@@ -1,6 +1,6 @@
-# ☸️ NGP - Nginx Geo Profiler (Kubernetes)
+# ☸️ WGP - Web Geo Profiler (Kubernetes)
 
-Despliegue en Kubernetes del sistema NGP para monitoreo y análisis de logs de Nginx con geolocalización.
+Despliegue en Kubernetes del sistema WGP para monitoreo y análisis de logs de **Nginx** y **Apache** con geolocalización.
 
 ## 📋 Requisitos
 
@@ -10,356 +10,144 @@ Despliegue en Kubernetes del sistema NGP para monitoreo y análisis de logs de N
 - StorageClass configurado (para PVCs)
 - (Opcional) Ingress Controller para acceso externo
 
+## 🖥️ Servidores Soportados
+
+| Servidor | Formatos | Auto-detección |
+|----------|----------|----------------|
+| **Nginx** | JSON | ✅ |
+| **Apache** | JSON, Combined | ✅ |
+
 ## 🚀 Inicio Rápido
 
-### Opción 1: Con Kustomize (Recomendado)
+### Con Kustomize (Recomendado)
 
 ```bash
-# Desde la carpeta Nginx-K8S
 kubectl apply -k .
 ```
 
-### Opción 2: Manual
+### Manual
 
 ```bash
-# 1. Crear namespace
 kubectl apply -f namespace.yaml
-
-# 2. Crear secrets (⚠️ modificar primero)
-kubectl apply -f secrets.yaml
-
-# 3. Crear ConfigMaps
+kubectl apply -f secrets.yaml      # ⚠️ Modificar primero
 kubectl apply -f configmap.yaml
-
-# 4. Crear PVCs
 kubectl apply -f pvc.yaml
-
-# 5. Desplegar servicios (en orden)
 kubectl apply -f postgres-deployment.yaml
 kubectl apply -f logstash-deployment.yaml
 kubectl apply -f log-processor-deployment.yaml
 kubectl apply -f grafana-deployment.yaml
-
-# 6. (Opcional) CronJob de retención
 kubectl apply -f retention-cronjob.yaml
-
-# 7. (Opcional) Ingress
-kubectl apply -f ingress.yaml
 ```
 
 ### Verificar Despliegue
 
 ```bash
-# Ver pods
-kubectl get pods -n ngp
-
-# Ver servicios
-kubectl get svc -n ngp
-
-# Ver logs
-kubectl logs -f deployment/logstash -n ngp
-kubectl logs -f deployment/log-processor -n ngp
+kubectl get pods -n wgp
+kubectl get svc -n wgp
+kubectl logs -f deployment/log-processor -n wgp
 ```
 
 ## 📁 Estructura de Archivos
 
 ```
 Nginx-K8S/
-├── README.md                    # Este archivo
-├── kustomization.yaml           # Para despliegue con Kustomize
-│
-├── namespace.yaml               # Namespace 'ngp'
+├── kustomization.yaml           # Despliegue con Kustomize
+├── namespace.yaml               # Namespace 'wgp'
 ├── secrets.yaml                 # Credenciales (⚠️ modificar)
 ├── configmap.yaml               # Configuraciones
 ├── pvc.yaml                     # Persistent Volume Claims
-│
-├── postgres-deployment.yaml     # PostgreSQL + Service
-├── logstash-deployment.yaml     # Logstash + Service
-├── log-processor-deployment.yaml # Log Processor
-├── grafana-deployment.yaml      # Grafana + Service
-│
-├── retention-cronjob.yaml       # Limpieza de datos antiguos
-└── ingress.yaml                 # Ingress (opcional)
+├── postgres-deployment.yaml
+├── logstash-deployment.yaml
+├── log-processor-deployment.yaml
+├── grafana-deployment.yaml
+├── retention-cronjob.yaml
+└── ingress.yaml                 # (Opcional)
 ```
 
 ## ⚙️ Configuración
 
 ### Secrets
 
-Antes de desplegar, modifica `secrets.yaml`:
+Modifica `secrets.yaml`:
 
 ```yaml
 stringData:
-  POSTGRES_USER: "tu_usuario"
+  POSTGRES_USER: "wgp_user"
   POSTGRES_PASSWORD: "tu_password_seguro"
-  POSTGRES_DB: "nginx_logs"
+  POSTGRES_DB: "web_logs"
   GRAFANA_USER: "admin"
   GRAFANA_PASSWORD: "tu_password_seguro"
+  DEFAULT_SERVER_TYPE: "nginx"  # o 'apache'
 ```
 
-> ⚠️ **Producción**: Usa [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), [External Secrets](https://external-secrets.io/) o [Vault](https://www.vaultproject.io/)
-
-### Storage
-
-Ajusta los PVCs en `pvc.yaml` según tu cluster:
-
-```yaml
-spec:
-  storageClassName: tu-storage-class  # standard, gp2, etc.
-  resources:
-    requests:
-      storage: 20Gi  # Ajustar según necesidad
-```
-
-### Imagen del Log Processor
-
-El log-processor necesita una imagen Docker. Opciones:
-
-**Opción A: Construir y publicar**
-```bash
-cd ../Nginx-Docker/log-processor
-docker build -t tu-registry/ngp-log-processor:latest .
-docker push tu-registry/ngp-log-processor:latest
-```
-
-**Opción B: Usar imagen local (desarrollo)**
-```yaml
-# En log-processor-deployment.yaml
-image: ngp-log-processor:latest
-imagePullPolicy: Never
-```
+> ⚠️ **Producción**: Usa Sealed Secrets, External Secrets o Vault
 
 ### GeoIP
 
-Para habilitar geolocalización, necesitas el archivo `GeoLite2-City.mmdb`:
-
-1. Descargar de [MaxMind](https://www.maxmind.com/en/geolite2/signup)
-2. Crear ConfigMap o Secret con el archivo
-3. Montar en el pod del log-processor
-
 ```bash
-# Crear ConfigMap con el archivo
 kubectl create configmap geoip-data \
   --from-file=GeoLite2-City.mmdb=./GeoLite2-City.mmdb \
-  -n ngp
+  -n wgp
 ```
 
 ## 🌐 Acceso a los Servicios
 
 ### Grafana
 
-**Con LoadBalancer:**
 ```bash
-kubectl get svc grafana-service -n ngp
-# Usar EXTERNAL-IP:3000
-```
+# Port Forward
+kubectl port-forward svc/grafana-service 3000:3000 -n wgp
 
-**Con Port Forward (desarrollo):**
-```bash
-kubectl port-forward svc/grafana-service 3000:3000 -n ngp
-# Acceder a http://localhost:3000
-```
-
-**Con Ingress:**
-```bash
-# Modificar ingress.yaml con tu dominio
-kubectl apply -f ingress.yaml
+# LoadBalancer
+kubectl get svc grafana-service -n wgp
 ```
 
 ### Logstash (para Filebeat)
 
-**Con LoadBalancer:**
 ```bash
-kubectl get svc logstash-service -n ngp
-# Usar EXTERNAL-IP:5044 en la config de Filebeat
-```
-
-**Con NodePort:**
-```yaml
-# Modificar logstash-deployment.yaml
-spec:
-  type: NodePort
-  ports:
-    - port: 5044
-      nodePort: 30044  # Puerto fijo
+kubectl get svc logstash-service -n wgp
+# Usar EXTERNAL-IP:5044 en Filebeat
 ```
 
 ## 🛠️ Comandos Útiles
 
 ```bash
-# Ver recursos del namespace
-kubectl get all -n ngp
+# Ver recursos
+kubectl get all -n wgp
 
-# Ver logs de un pod
-kubectl logs -f deployment/logstash -n ngp
-kubectl logs -f deployment/grafana -n ngp
+# Logs
+kubectl logs -f deployment/logstash -n wgp
 
-# Ejecutar shell en un pod
-kubectl exec -it deployment/postgres -n ngp -- psql -U ngp_user -d nginx_logs
+# PostgreSQL
+kubectl exec -it deployment/postgres -n wgp -- psql -U wgp_user -d web_logs
 
-# Escalar deployments
-kubectl scale deployment/log-processor --replicas=2 -n ngp
-
-# Ver eventos
-kubectl get events -n ngp --sort-by='.lastTimestamp'
+# Escalar
+kubectl scale deployment/log-processor --replicas=2 -n wgp
 
 # Eliminar todo
 kubectl delete -k .
-# o
-kubectl delete namespace ngp
 ```
-
-## 📊 Monitoreo del Cluster
-
-### Métricas de Pods
-
-```bash
-# Uso de recursos
-kubectl top pods -n ngp
-
-# Descripción detallada
-kubectl describe pod -l app=postgres -n ngp
-```
-
-### Health Checks
-
-```bash
-# Estado de los pods
-kubectl get pods -n ngp -o wide
-
-# Verificar readiness
-kubectl get pods -n ngp -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}'
-```
-
-## 🔄 Actualizaciones
-
-### Rolling Update
-
-```bash
-# Actualizar imagen
-kubectl set image deployment/grafana grafana=grafana/grafana:10.2.0 -n ngp
-
-# Ver progreso
-kubectl rollout status deployment/grafana -n ngp
-
-# Rollback si hay problemas
-kubectl rollout undo deployment/grafana -n ngp
-```
-
-### Con Kustomize
-
-Modifica la versión en `kustomization.yaml`:
-
-```yaml
-images:
-  - name: grafana/grafana
-    newTag: "10.2.0"
-```
-
-```bash
-kubectl apply -k .
-```
-
-## 🔒 Seguridad
-
-### Network Policies (Opcional)
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: ngp-network-policy
-  namespace: ngp
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-    - Egress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: ngp
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              name: ngp
-```
-
-### Pod Security
-
-Los deployments incluyen:
-- `securityContext` configurado
-- Probes de liveness y readiness
-- Límites de recursos
 
 ## 🔍 Troubleshooting
 
 ### Pod en CrashLoopBackOff
-
 ```bash
-kubectl describe pod <pod-name> -n ngp
-kubectl logs <pod-name> -n ngp --previous
+kubectl describe pod <pod-name> -n wgp
+kubectl logs <pod-name> -n wgp --previous
 ```
 
 ### PVC Pending
-
 ```bash
-kubectl describe pvc postgres-pvc -n ngp
-# Verificar StorageClass disponible
+kubectl describe pvc postgres-pvc -n wgp
 kubectl get storageclass
 ```
 
 ### Servicios no accesibles
-
 ```bash
-# Verificar endpoints
-kubectl get endpoints -n ngp
-
-# Test de conectividad
-kubectl run test --rm -it --image=busybox -n ngp -- /bin/sh
-# Dentro del pod:
-nc -zv postgres-service 5432
-```
-
-### Log Processor no conecta a PostgreSQL
-
-```bash
-# Verificar que postgres está listo
-kubectl get pods -n ngp -l app=postgres
-
-# Ver logs del init container
-kubectl logs deployment/log-processor -c wait-for-postgres -n ngp
-```
-
-## 📈 Escalabilidad
-
-### Horizontal Pod Autoscaler (Opcional)
-
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: log-processor-hpa
-  namespace: ngp
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: log-processor
-  minReplicas: 1
-  maxReplicas: 5
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
+kubectl get endpoints -n wgp
+kubectl run test --rm -it --image=busybox -n wgp -- nc -zv postgres-service 5432
 ```
 
 ---
 
 📖 Ver [README principal](../README.md) para documentación completa.
-

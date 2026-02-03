@@ -1,15 +1,16 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# NGP - Nginx Geo Profiler - Log Processor Deployment
+# WGP - Web Geo Profiler - Log Processor Deployment
+# Supports: Nginx, Apache
 # ═══════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: log-processor
-  namespace: ngp
+  namespace: wgp
   labels:
     app.kubernetes.io/name: log-processor
-    app.kubernetes.io/part-of: nginx-geo-profiler
+    app.kubernetes.io/part-of: web-geo-profiler
 spec:
   replicas: 1
   selector:
@@ -20,7 +21,7 @@ spec:
       labels:
         app: log-processor
         app.kubernetes.io/name: log-processor
-        app.kubernetes.io/part-of: nginx-geo-profiler
+        app.kubernetes.io/part-of: web-geo-profiler
     spec:
       initContainers:
         # Esperar a que PostgreSQL esté listo
@@ -49,9 +50,9 @@ spec:
               echo "Logstash is ready!"
       containers:
         - name: log-processor
-          image: ghcr.io/tu-org/ngp-log-processor:latest  # Cambiar por tu imagen
+          image: ghcr.io/tu-org/wgp-log-processor:latest  # Cambiar por tu imagen
           # O usar build local con:
-          # image: ngp-log-processor:latest
+          # image: wgp-log-processor:latest
           # imagePullPolicy: Never
           env:
             - name: POSTGRES_HOST
@@ -61,29 +62,34 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: ngp-secrets
+                  name: wgp-secrets
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ngp-secrets
+                  name: wgp-secrets
                   key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: ngp-secrets
+                  name: wgp-secrets
                   key: POSTGRES_DB
             - name: LOG_FILE
-              value: "/var/log/nginx/access.log"
+              value: "/var/log/webserver/access.log"
             - name: GEOIP_DB
               value: "/app/geoip/GeoLite2-City.mmdb"
             - name: BATCH_SIZE
               value: "100"
             - name: FLUSH_INTERVAL
               value: "5.0"
+            - name: DEFAULT_SERVER_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: wgp-secrets
+                  key: DEFAULT_SERVER_TYPE
           volumeMounts:
             - name: logstash-logs
-              mountPath: /var/log/nginx
+              mountPath: /var/log/webserver
               readOnly: true
             - name: geoip-data
               mountPath: /app/geoip
@@ -102,4 +108,3 @@ spec:
         - name: geoip-data
           emptyDir: {}  # Reemplazar con ConfigMap o Secret con el archivo .mmdb
           # Para producción, usar un PVC o un initContainer que descargue el archivo
-
