@@ -246,7 +246,7 @@
             },
             "gridPos": {
                 "h": 8,
-                "w": 12,
+                "w": 8,
                 "x": 0,
                 "y": 24
             },
@@ -313,8 +313,8 @@
             },
             "gridPos": {
                 "h": 8,
-                "w": 12,
-                "x": 12,
+                "w": 8,
+                "x": 8,
                 "y": 24
             },
             "id": 6,
@@ -355,6 +355,73 @@
                 }
             ],
             "title": "💻 OS Distribution",
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 16,
+                "y": 24
+            },
+            "id": 26,
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true,
+                    "values": [
+                        "value",
+                        "percent"
+                    ]
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT substring(referrer from '^(?:https?://)?([^/]+)') as source, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) AND referrer IS NOT NULL AND referrer != '-' GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+                }
+            ],
+            "title": "📊 Traffic Sources",
             "type": "piechart"
         },
         {
