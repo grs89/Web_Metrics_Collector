@@ -213,6 +213,71 @@
                 "type": "postgres",
                 "uid": "PostgreSQL"
             },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "align": "auto",
+                        "displayMode": "color-background",
+                        "inspect": false
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "transparent",
+                                "value": null
+                            },
+                            {
+                                "color": "dark-green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 0,
+                "y": 6
+            },
+            "id": 31,
+            "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT hostname as vhost, COUNT(DISTINCT client_ip) as active_users_5m FROM web_access_logs WHERE timestamp >= NOW() - INTERVAL '5 minutes' AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
+                }
+            ],
+            "title": "🟢 Active Users / vHost (Last 5m)",
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
             "gridPos": {
                 "h": 10,
                 "w": 12,
