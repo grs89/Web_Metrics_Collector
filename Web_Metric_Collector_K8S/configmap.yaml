@@ -124,7 +124,7 @@ data:
         source_host VARCHAR(255),
         remote_addr INET,
         remote_user VARCHAR(255),
-        request_method VARCHAR(10),
+        request_method VARCHAR(50),
         request_uri TEXT,
         request TEXT,
         status SMALLINT,

@@ -22,16 +22,15 @@ hosts:
   # ─────────────────────────────────────────────────────────────────────────
   # Example Nginx Server
   # ─────────────────────────────────────────────────────────────────────────
-  - name: Ingelap-Web
+  - name: Web
     enabled: true
-    host: 186.155.203.112
-    port: 2222
+    host: 192.168.1.11
+    port: 22
     # ssh_user: wgp  # Optional: override global user
     # ssh_key_path: /app/ssh/custom_key  # Optional: override global key
     server_type: nginx
     log_paths:
       - /var/log/nginx/access.log
-      - /var/log/nginx/landing_page_ingelap.access.log
     # Optional: log format (json or combined)
     log_format: json
 

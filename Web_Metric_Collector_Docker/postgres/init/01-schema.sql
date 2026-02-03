@@ -20,7 +20,7 @@ CREATE TABLE web_access_logs (
     -- Request info
     remote_addr     INET NOT NULL,
     remote_user     VARCHAR(255),
-    request_method  VARCHAR(10),
+    request_method  VARCHAR(50),
     request_uri     TEXT,
     request         TEXT,
     status          SMALLINT NOT NULL,
