@@ -47,6 +47,13 @@ WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfi
    ```
 6. **Acceder a Grafana**: Abre `http://localhost:3000` (Usuario: `admin` / Contraseña: `admin`). El dashboard "WMC Dashboard" está precargado.
 
+### ⚙️ Configuración del Dashboard
+Para que la detección de **Hosts Sospechosos** funcione correctamente:
+1. En el dashboard, busca la caja de texto **"Trusted Domain"** en la parte superior.
+2. Escribe tu dominio principal (ej: `misitio.com` o `google.com`).
+3. El panel "🚨 Suspicious Hosts" se actualizará para mostrar solo el tráfico que **NO** coincide con tu dominio (posibles clones o ataques).
+
+
 ## ➕ Incorporar un Nuevo Servidor
 
 Para agregar un nuevo servidor al pool de monitoreo:
@@ -120,6 +127,13 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
    docker-compose up -d --build
    ```
 6. **Acessar o Grafana**: Abra `http://localhost:3000` (Usuário: `admin` / Senha: `admin`). O dashboard "WMC Dashboard" está pré-carregado.
+
+### ⚙️ Configuração do Dashboard
+Para que a detecção de **Hosts Suspeitos** funcione corretamente:
+1. No dashboard, encontre a caixa de texto **"Trusted Domain"** no topo.
+2. Digite seu domínio principal (ex: `meusite.com`).
+3. O painel "🚨 Suspicious Hosts" será atualizado para mostrar apenas o tráfego que **NÃO** coincide com seu domínio (possíveis clones ou ataques).
+
 
 ## ➕ Adicionando um Novo Servidor
 
