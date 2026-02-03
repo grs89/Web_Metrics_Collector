@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - postgres.yaml
+  - grafana.yaml
+  - log_processor.yaml
+
+configMapGenerator:
+  - name: wmc-init-sql
+    files:
+      - init.sql=../database/init.sql
+  - name: wmc-config
+    files:
+      - hosts.yml=../hosts.yml
+
+# Secret generator would handle SSH keys in prod

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wmc-log-processor
+spec:
+  selector:
+    matchLabels:
+      app: wmc-log-processor
+  template:
+    metadata:
+      labels:
+        app: wmc-log-processor
+    spec:
+      containers:
+      - name: log-processor
+        image: wmc-log-processor:latest # Needs to be built and pushed to registry
+        env:
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_NAME
+          value: "wmc_db"
+        - name: DB_USER
+          value: "wmc_user"
+        - name: DB_PASSWORD
+          value: "wmc_password"
+        volumeMounts:
+        - name: config
+          mountPath: /app/hosts.yml
+          subPath: hosts.yml
+        - name: ssh-keys
+          mountPath: /ssh_keys
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: wmc-config
+      - name: ssh-keys
+        secret:
+          secretName: wmc-ssh-keys

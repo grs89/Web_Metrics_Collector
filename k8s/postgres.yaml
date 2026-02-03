@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wmc-postgres
+spec:
+  selector:
+    matchLabels:
+      app: wmc-postgres
+  template:
+    metadata:
+      labels:
+        app: wmc-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16
+        env:
+        - name: POSTGRES_USER
+          value: "wmc_user"
+        - name: POSTGRES_PASSWORD
+          value: "wmc_password" # Should be a secret in prod
+        - name: POSTGRES_DB
+          value: "wmc_db"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        - name: init-sql
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: postgres-storage
+        emptyDir: {} # Use PersistentVolumeClaim in prod
+      - name: init-sql
+        configMap:
+          name: wmc-init-sql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: wmc-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432

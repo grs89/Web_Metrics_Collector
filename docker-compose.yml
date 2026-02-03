@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: wmc-postgres
+    environment:
+      POSTGRES_USER: wmc_user
+      POSTGRES_PASSWORD: wmc_password
+      POSTGRES_DB: wmc_db
+    volumes:
+      - ./wmc_postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - wmc-network
+    restart: always
+
+  grafana:
+    image: grafana/grafana:12.0.0
+    container_name: wmc-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-worldmap-panel,grafana-clock-panel,volkovlabs-echarts-panel
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - wmc-network
+    depends_on:
+      - postgres
+    restart: always
+
+  log-processor:
+    build: ./log_processor
+    container_name: wmc-log-processor
+    depends_on:
+      - postgres
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=wmc_db
+      - DB_USER=wmc_user
+      - DB_PASSWORD=wmc_password
+      #      - GEOIP_LICENSE_KEY=${GEOIP_LICENSE_KEY}
+      - GEOIP_LICENSE_KEY=${GEOIP_LICENSE_KEY}
+      - CONFIG_FILE=/config/hosts.yml
+    volumes:
+      - ./log_processor:/app
+      - ./hosts.yml:/config/hosts.yml
+      - ./keys:/ssh_keys:ro # Mount local project keys folder
+    networks:
+      - wmc-network
+    restart: unless-stopped
+
+networks:
+  wmc-network:
+    driver: bridge
+
+#volumes:
+#  wgp_postgres_data:

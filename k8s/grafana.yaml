@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wmc-grafana
+spec:
+  selector:
+    matchLabels:
+      app: wmc-grafana
+  template:
+    metadata:
+      labels:
+        app: wmc-grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:12.0.0
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: "admin"
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "admin"
+        - name: GF_INSTALL_PLUGINS
+          value: "grafana-worldmap-panel,grafana-clock-panel"
+        ports:
+        - containerPort: 3000
+        # Provisioning volumes would be ConfigMaps here
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wmc-grafana
+spec:
+  selector:
+    app: wmc-grafana
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: LoadBalancer # Or ClusterIP + Ingress

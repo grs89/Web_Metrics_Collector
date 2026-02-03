@@ -1,0 +1,682 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "gridPos": {
+                "h": 14,
+                "w": 16,
+                "x": 0,
+                "y": 0
+            },
+            "id": 1,
+            "options": {
+                "getOption": "const serverLoc = [-74.07, 4.71]; // Bogota, CO\n\ntry {\n  if (typeof data === 'undefined' || !data.series || !data.series[0]) {\n    return {\n      backgroundColor: 'transparent',\n      title: {\n        text: 'Waiting for data...',\n        left: 'center',\n        textStyle: { color: '#fff' }\n      }\n    };\n  }\n\n  const source = data.series[0];\n  const latIdx = source.fields.findIndex(f => f.name === 'latitude');\n  const lonIdx = source.fields.findIndex(f => f.name === 'longitude');\n  const cntIdx = source.fields.findIndex(f => f.name === 'count');\n\n  if (latIdx === -1 || lonIdx === -1) return {};\n\n  const routes = [];\n  const points = [];\n\n  for (let i = 0; i < source.length; i++) {\n    const lat = source.fields[latIdx].values[i];\n    const lon = source.fields[lonIdx].values[i];\n    const count = cntIdx > -1 ? source.fields[cntIdx].values[i] : 1;\n    \n    if (lat && lon) {\n      points.push({ name: '', value: [lon, lat, count] });\n      routes.push({\n        coords: [[lon, lat], serverLoc],\n        value: count\n      });\n    }\n  }\n\n  points.push({ name: 'Server', value: serverLoc, itemStyle: { color: '#f00' } });\n\n  return {\n    backgroundColor: 'transparent',\n    tooltip: { trigger: 'item' },\n    geo: {\n      map: 'world',\n      roam: true,\n      silent: true,\n      itemStyle: {\n        normal: {\n          borderColor: 'rgba(255,255,255,0.1)',\n          areaColor: 'rgba(50,50,50,0.5)'\n        }\n      }\n    },\n    series: [\n      {\n        type: 'lines',\n        coordinateSystem: 'geo',\n        zlevel: 2,\n        effect: {\n          show: true,\n          period: 4,\n          trailLength: 0.1,\n          color: '#c0cbff',\n          symbol: 'arrow',\n          symbolSize: 5\n        },\n        lineStyle: {\n          normal: {\n            color: '#a6c84c',\n            width: 0,\n            curveness: 0.2\n          }\n        },\n        data: routes\n      },\n      {\n        type: 'effectScatter',\n        coordinateSystem: 'geo',\n        zlevel: 3,\n        rippleEffect: {\n          brushType: 'stroke'\n        },\n        itemStyle: {\n           color: '#a6c84c'\n        },\n        data: points\n      }\n    ]\n  };\n} catch (e) {\n  console.error('ECharts Error:', e);\n  return {};\n}",
+                "map": "json",
+                "renderer": "canvas"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT city, latitude, longitude, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY city, latitude, longitude ORDER BY count DESC LIMIT 100"
+                }
+            ],
+            "title": "Global Traffic Map (Live)",
+            "type": "volkovlabs-echarts-panel"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 14,
+                "w": 8,
+                "x": 16,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT $__timeGroup(timestamp, '1m') as time, count(*) as req_per_min FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 1"
+                }
+            ],
+            "title": "Requests Per Minute",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 0,
+                "y": 14
+            },
+            "id": 3,
+            "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT client_ip, country_code, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 10"
+                }
+            ],
+            "title": "Top 10 Client IPs",
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 12,
+                "y": 14
+            },
+            "id": 4,
+            "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT uri, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+                }
+            ],
+            "title": "Top 10 URIs",
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 24
+            },
+            "id": 5,
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true,
+                    "values": [
+                        "value",
+                        "percent"
+                    ]
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT COALESCE(browser, 'Unknown') as \"Browser\", count(*) as \"Requests\" FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
+                }
+            ],
+            "title": "Browser Distribution",
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 24
+            },
+            "id": 6,
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true,
+                    "values": [
+                        "value",
+                        "percent"
+                    ]
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT COALESCE(os, 'Unknown') as \"OS\", count(*) as \"Requests\" FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
+                }
+            ],
+            "title": "OS Distribution",
+            "type": "piechart"
+        },
+        {
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 32
+            },
+            "id": 7,
+            "title": "Security & Threats",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 0,
+                "y": 33
+            },
+            "id": 8,
+            "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT timestamp, source_host, client_ip, uri FROM web_access_logs WHERE $__timeFilter(timestamp) AND (uri ILIKE '%union%select%' OR uri ILIKE '%eval(%' OR uri ILIKE '%/etc/passwd%' OR uri ILIKE '%<script>%') ORDER BY timestamp DESC LIMIT 20"
+                }
+            ],
+            "title": "Potential Attack Signatures",
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "bars",
+                        "fillOpacity": 100,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 8,
+                "y": 33
+            },
+            "id": 9,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT $__timeGroup(timestamp, '5m') as time, status_code::text, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND status_code IN (403, 404, 500) GROUP BY 1, 2 ORDER BY 1"
+                }
+            ],
+            "title": "Error Rates (404/403/500)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 16,
+                "y": 33
+            },
+            "id": 10,
+            "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT user_agent, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND (user_agent ILIKE '%bot%' OR user_agent ILIKE '%crawl%' OR user_agent ILIKE '%python%' OR user_agent ILIKE '%curl%') GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+                }
+            ],
+            "title": "Bot Traffic (User-Agents)",
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 43
+            },
+            "id": 11,
+            "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT ip_address, reason, created_at FROM blocked_ips ORDER BY created_at DESC"
+                }
+            ],
+            "title": "Blocked IPs (Fail2Ban Lite)",
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 43
+            },
+            "id": 12,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND is_fake_bot = TRUE"
+                }
+            ],
+            "title": "Fake Bots Detected",
+            "type": "stat"
+        }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 39,
+    "tags": [],
+    "templating": {
+        "list": [
+            {
+                "current": {
+                    "text": "All",
+                    "value": "$__all"
+                },
+                "datasource": {
+                    "type": "postgres",
+                    "uid": "PostgreSQL"
+                },
+                "definition": "SELECT DISTINCT source_host FROM web_access_logs ORDER BY 1",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Host",
+                "multi": true,
+                "name": "host",
+                "options": [],
+                "query": "SELECT DISTINCT source_host FROM web_access_logs ORDER BY 1",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 1,
+                "type": "query"
+            }
+        ]
+    },
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "WMC Dashboard",
+    "uid": "wmc-main-v1",
+    "version": 1,
+    "weekStart": ""
+}

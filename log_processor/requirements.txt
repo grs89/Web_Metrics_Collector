@@ -1,0 +1,11 @@
+psycopg2-binary==2.9.9
+paramiko==3.4.0
+geoip2==4.8.0
+PyYAML==6.0.2
+paramiko==3.4.0
+geoip2==4.8.0
+PyYAML==6.0.2
+python-dotenv==1.0.1
+tenacity==8.2.3
+requests==2.31.0
+user-agents==2.2.0
