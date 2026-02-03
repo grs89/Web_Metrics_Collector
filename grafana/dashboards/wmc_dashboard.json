@@ -49,7 +49,7 @@
                     "format": "table",
                     "rawQuery": true,
                     "refId": "A",
-                    "rawSql": "SELECT city::text, latitude::float, longitude::float, count(*)::int as request_count FROM web_access_logs WHERE $__timeFilter(timestamp) AND latitude IS NOT NULL AND longitude IS NOT NULL AND city IS NOT NULL AND source_host IN ($host) GROUP BY city, latitude, longitude ORDER BY 4 DESC LIMIT 100"
+                    "rawSql": "SELECT city, latitude, longitude, count(*) as request_count FROM web_access_logs WHERE $__timeFilter(timestamp) AND latitude IS NOT NULL AND longitude IS NOT NULL AND city IS NOT NULL GROUP BY city, latitude, longitude ORDER BY 4 DESC LIMIT 100"
                 }
             ],
             "title": "Global Traffic Map (Live)",
