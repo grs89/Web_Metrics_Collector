@@ -10,6 +10,7 @@ WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfi
 - **Sin Agentes**: Utiliza SSH para leer registros (no requiere instalación en servidores remotos).
 - **Enriquecimiento**: Agrega Ciudad/País/Latitud/Longitud a cada petición.
 - **Inteligencia de Seguridad**:
+  - **🛡️ Detección de Hosts Sospechosos**: Identifica clones (Phishing), scanners y configuraciones DNS erróneas.
   - **Detección de Falsos Googlebot**: Bloqueia IPs que pretenden ser Googlebot.
   - **Fail2Ban Lite**: Bloqueo automático de IPs con actividad maliciosa.
   - **Monitoreo de Amenazas**: Visualiza picos de SQLi, XSS y errores.
@@ -17,7 +18,10 @@ WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfi
   - **DNS Inverso**: Resuelve IPs a nombres de host (con caché).
   - **Mapa de Tráfico Animado**: Visualización 3D en vivo del flujo de tráfico.
 - **Retención de Datos**: Limpieza automática de registros con más de 1 año.
-- **Analítica**: Desglose por Navegador, Sistema Operativo y Dispositivo.
+- **Analítica de Tráfico**:
+  - **Fuentes de Tráfico**: Desglose por referidos (Google, Directo, Redes Sociales).
+  - **Usuarios Activos**: Conteo en tiempo real por sitio (vHost).
+  - **Desglose Técnico**: Navegador, Sistema Operativo y Dispositivo.
 - **Visualización**: Dashboard de Grafana preconfigurado con Mapa Mundial.
 - **Soporte**: Nginx (JSON) y Apache (Formato de Registro Combinado).
 
@@ -80,14 +84,18 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
 - **Sem Agentes**: Usa SSH para ler logs (sem instalação necessária em servidores remotos).
 - **Enriquecimento**: Adiciona Cidade/País/Lat/Lon a cada requisição.
 - **Inteligência de Segurança**:
+  - **🛡️ Detecção de Hosts Suspeitos**: Identifica clones (Phishing), scanners e configurações de DNS incorretas.
   - **Detecção de Falso Googlebot**: Bloqueia IPs fingindo ser o Googlebot.
   - **Fail2Ban Lite**: Banimento automático de IPs envolvidos em atividades maliciosas.
   - **Monitoramento de Ameaças**: Visualiza picos de SQLi, XSS e erros.
 - **Redes Avançadas**:
   - **DNS Reverso**: Resolve IPs para nomes de host (com cache).
   - **Mapa de Tráfego Animado**: Visualização 3D ao vivo do fluxo de tráfego.
-- **Retenção de Dados**: Limpieza automática de logs com mais de 1 ano.
-- **Analytics**: Detalhamento por Navegador, Sistema Operacional e Dispositivo.
+- **Retenção de Dados**: Limpeza automática de logs com mais de 1 ano.
+- **Análise de Tráfego**:
+  - **Fontes de Tráfego**: Detalhamento por referências (Google, Direto, Redes Sociais).
+  - **Usuários Ativos**: Contagem em tempo real por site (vHost).
+  - **Detalhamento Técnico**: Navegador, Sistema Operacional e Dispositivo.
 - **Visualização**: Dashboard Grafana pré-configurado com Mapa Mundial.
 - **Suporte**: Nginx (JSON) e Apache (Formato de Log Combinado).
 
