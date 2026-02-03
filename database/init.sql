@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS web_access_logs (
     browser VARCHAR(100),
     os VARCHAR(100),
     device VARCHAR(100),
+    is_fake_bot BOOLEAN DEFAULT FALSE,
     referrer TEXT,
     country_code CHAR(2),
     city VARCHAR(255),
