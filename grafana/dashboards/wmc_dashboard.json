@@ -736,7 +736,7 @@
             },
             "gridPos": {
                 "h": 8,
-                "w": 12,
+                "w": 8,
                 "x": 0,
                 "y": 51
             },
@@ -796,8 +796,8 @@
             },
             "gridPos": {
                 "h": 8,
-                "w": 12,
-                "x": 12,
+                "w": 8,
+                "x": 8,
                 "y": 51
             },
             "id": 12,
@@ -830,6 +830,44 @@
             ],
             "title": "🧟 Fake Bots Detected",
             "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 16,
+                "y": 51
+            },
+            "id": 32,
+            "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT hostname, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND hostname NOT ILIKE concat('%', '$trusted_domain', '%') AND hostname NOT IN ('localhost', '127.0.0.1') GROUP BY 1 ORDER BY 2 DESC"
+                }
+            ],
+            "title": "🚨 Suspicious Hosts (Clones)",
+            "type": "table"
         }
     ],
     "refresh": "10s",
@@ -859,6 +897,26 @@
                 "skipUrlSync": false,
                 "sort": 1,
                 "type": "query"
+            },
+            {
+                "current": {
+                    "selected": false,
+                    "text": "your-domain.com",
+                    "value": "your-domain.com"
+                },
+                "hide": 0,
+                "label": "Trusted Domain (Official)",
+                "name": "trusted_domain",
+                "options": [
+                    {
+                        "selected": true,
+                        "text": "your-domain.com",
+                        "value": "your-domain.com"
+                    }
+                ],
+                "query": "your-domain.com",
+                "skipUrlSync": false,
+                "type": "textbox"
             }
         ]
     },
