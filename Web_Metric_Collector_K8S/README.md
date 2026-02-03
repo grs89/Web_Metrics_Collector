@@ -1,153 +1,164 @@
 # ☸️ WGP - Web Geo Profiler (Kubernetes)
 
-Despliegue en Kubernetes del sistema WGP para monitoreo y análisis de logs de **Nginx** y **Apache** con geolocalización.
+Despliegue en Kubernetes del sistema WGP para monitoreo de logs de **Nginx** y **Apache** con geolocalización.
+
+## 🏗️ Arquitectura PULL
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Kubernetes Cluster                          │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │                     Namespace: wgp                           ││
+│  │  ┌─────────────┐   ┌───────────┐   ┌──────────┐             ││
+│  │  │Log Processor│──▶│ PostgreSQL│──▶│  Grafana │──▶ Ingress  ││
+│  │  │   (PULL)    │   └───────────┘   └──────────┘             ││
+│  │  └──────┬──────┘                                            ││
+│  └─────────┼───────────────────────────────────────────────────┘│
+└────────────┼────────────────────────────────────────────────────┘
+             │ SSH (cada 30s)
+       ┌─────┴─────┬─────────────┐
+       ▼           ▼             ▼
+   ┌────────┐  ┌────────┐   ┌────────┐
+   │ Nginx  │  │ Apache │   │Server N│
+   └────────┘  └────────┘   └────────┘
+```
+
+> **Sin Logstash** - El log-processor se conecta directamente via SSH.
 
 ## 📋 Requisitos
 
 - Kubernetes 1.24+
 - kubectl configurado
-- Cluster con al menos 4GB RAM disponible
-- StorageClass configurado (para PVCs)
-- (Opcional) Ingress Controller para acceso externo
+- Acceso SSH a servidores web remotos
 
-## 🖥️ Servidores Soportados
+## 🚀 Despliegue
 
-| Servidor | Formatos | Auto-detección |
-|----------|----------|----------------|
-| **Nginx** | JSON | ✅ |
-| **Apache** | JSON, Combined | ✅ |
+### 1. Crear SSH Key
 
-## 🚀 Inicio Rápido
+```bash
+# Generar key
+ssh-keygen -t rsa -b 4096 -f ./id_rsa -N ""
 
-### Con Kustomize (Recomendado)
+# Copiar a cada servidor web
+ssh-copy-id -i ./id_rsa.pub wgp@TU_SERVIDOR_IP
+
+# Crear secret en K8S
+kubectl create namespace wgp
+kubectl create secret generic wgp-ssh-key \
+  --from-file=id_rsa=./id_rsa \
+  -n wgp
+```
+
+### 2. Configurar Hosts
+
+Editar `configmap.yaml` → sección `wgp-hosts-config`:
+
+```yaml
+hosts:
+  - name: nginx-server-1
+    enabled: true
+    host: 192.168.1.10
+    server_type: nginx
+    log_paths:
+      - /var/log/nginx/access.log
+```
+
+### 3. Personalizar Secrets
+
+```bash
+# Editar secrets.yaml con tus credenciales
+nano secrets.yaml
+```
+
+### 4. Desplegar
 
 ```bash
 kubectl apply -k .
 ```
 
-### Manual
-
-```bash
-kubectl apply -f namespace.yaml
-kubectl apply -f secrets.yaml      # ⚠️ Modificar primero
-kubectl apply -f configmap.yaml
-kubectl apply -f pvc.yaml
-kubectl apply -f postgres-deployment.yaml
-kubectl apply -f logstash-deployment.yaml
-kubectl apply -f log-processor-deployment.yaml
-kubectl apply -f grafana-deployment.yaml
-kubectl apply -f retention-cronjob.yaml
-```
-
-### Verificar Despliegue
+### 5. Verificar
 
 ```bash
 kubectl get pods -n wgp
-kubectl get svc -n wgp
 kubectl logs -f deployment/log-processor -n wgp
 ```
 
-## 📁 Estructura de Archivos
+## 📦 Componentes
 
+| Componente | Replicas | Descripción |
+|------------|----------|-------------|
+| **log-processor** | 1 | Recolecta logs via SSH |
+| **postgres** | 1 | Base de datos |
+| **grafana** | 1 | Dashboard |
+| **retention-cronjob** | CronJob | Limpieza anual |
+
+## 🔧 Preparar Servidor Remoto
+
+```bash
+# En cada servidor web
+sudo useradd -m -s /bin/bash wgp
+sudo usermod -aG adm wgp
+
+# Desde máquina con kubectl
+ssh-copy-id -i ./id_rsa.pub wgp@SERVIDOR_IP
 ```
-Nginx-K8S/
-├── kustomization.yaml           # Despliegue con Kustomize
-├── namespace.yaml               # Namespace 'wgp'
-├── secrets.yaml                 # Credenciales (⚠️ modificar)
-├── configmap.yaml               # Configuraciones
-├── pvc.yaml                     # Persistent Volume Claims
-├── postgres-deployment.yaml
-├── logstash-deployment.yaml
-├── log-processor-deployment.yaml
-├── grafana-deployment.yaml
-├── retention-cronjob.yaml
-└── ingress.yaml                 # (Opcional)
+
+## 📊 Acceso a Grafana
+
+### Con Port-Forward
+
+```bash
+kubectl port-forward svc/grafana-service 3001:3000 -n wgp
+# Abrir http://localhost:3001
 ```
 
-## ⚙️ Configuración
+### Con Ingress
 
-### Secrets
-
-Modifica `secrets.yaml`:
-
+Descomentar en `kustomization.yaml`:
 ```yaml
-stringData:
-  POSTGRES_USER: "wgp_user"
-  POSTGRES_PASSWORD: "tu_password_seguro"
-  POSTGRES_DB: "web_logs"
-  GRAFANA_USER: "admin"
-  GRAFANA_PASSWORD: "tu_password_seguro"
-  DEFAULT_SERVER_TYPE: "nginx"  # o 'apache'
-```
-
-> ⚠️ **Producción**: Usa Sealed Secrets, External Secrets o Vault
-
-### GeoIP
-
-```bash
-kubectl create configmap geoip-data \
-  --from-file=GeoLite2-City.mmdb=./GeoLite2-City.mmdb \
-  -n wgp
-```
-
-## 🌐 Acceso a los Servicios
-
-### Grafana
-
-```bash
-# Port Forward
-kubectl port-forward svc/grafana-service 3000:3000 -n wgp
-
-# LoadBalancer
-kubectl get svc grafana-service -n wgp
-```
-
-### Logstash (para Filebeat)
-
-```bash
-kubectl get svc logstash-service -n wgp
-# Usar EXTERNAL-IP:5044 en Filebeat
+resources:
+  - ingress.yaml
 ```
 
 ## 🛠️ Comandos Útiles
 
 ```bash
-# Ver recursos
-kubectl get all -n wgp
+# Ver logs
+kubectl logs -f deployment/log-processor -n wgp
 
-# Logs
-kubectl logs -f deployment/logstash -n wgp
+# Reiniciar después de cambiar config
+kubectl rollout restart deployment/log-processor -n wgp
 
-# PostgreSQL
+# Acceder a PostgreSQL
 kubectl exec -it deployment/postgres -n wgp -- psql -U wgp_user -d web_logs
 
-# Escalar
-kubectl scale deployment/log-processor --replicas=2 -n wgp
-
-# Eliminar todo
-kubectl delete -k .
+# Ver posiciones guardadas
+kubectl exec deployment/log-processor -n wgp -- cat /app/data/positions.json
 ```
 
-## 🔍 Troubleshooting
+## 📁 Estructura
 
-### Pod en CrashLoopBackOff
-```bash
-kubectl describe pod <pod-name> -n wgp
-kubectl logs <pod-name> -n wgp --previous
+```
+Web_Metric_Collector_K8S/
+├── kustomization.yaml          # Orquestación
+├── namespace.yaml              # Namespace wgp
+├── secrets.yaml                # Credenciales
+├── configmap.yaml              # Hosts config + Grafana
+├── pvc.yaml                    # Persistent volumes
+├── postgres-deployment.yaml    # PostgreSQL
+├── log-processor-deployment.yaml # PULL via SSH
+├── grafana-deployment.yaml     # Grafana
+├── retention-cronjob.yaml      # Limpieza
+└── ingress.yaml                # (Opcional)
 ```
 
-### PVC Pending
-```bash
-kubectl describe pvc postgres-pvc -n wgp
-kubectl get storageclass
-```
+## 🔒 Seguridad
 
-### Servicios no accesibles
-```bash
-kubectl get endpoints -n wgp
-kubectl run test --rm -it --image=busybox -n wgp -- nc -zv postgres-service 5432
-```
+Para producción:
+- Usar **Sealed Secrets** o **Vault** para credenciales
+- Restringir SSH key con `command=` en authorized_keys
+- Network Policies para aislar pods
 
 ---
 
-📖 Ver [README principal](../README.md) para documentación completa.
+📖 Ver [README principal](../README.md) para más información.

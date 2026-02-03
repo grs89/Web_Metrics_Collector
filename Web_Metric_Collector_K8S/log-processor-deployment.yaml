@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # WGP - Web Geo Profiler - Log Processor Deployment
-# Supports: Nginx, Apache
+# PULL-based Architecture via SSH
 # ═══════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: apps/v1
@@ -36,24 +36,10 @@ spec:
                 sleep 2
               done
               echo "PostgreSQL is ready!"
-        # Esperar a que Logstash esté listo
-        - name: wait-for-logstash
-          image: busybox:1.36
-          command:
-            - 'sh'
-            - '-c'
-            - |
-              until nc -z logstash-service 9600; do
-                echo "Waiting for Logstash..."
-                sleep 5
-              done
-              echo "Logstash is ready!"
       containers:
         - name: log-processor
-          image: ghcr.io/tu-org/wgp-log-processor:latest  # Cambiar por tu imagen
-          # O usar build local con:
-          # image: wgp-log-processor:latest
-          # imagePullPolicy: Never
+          image: ghcr.io/tu-org/wgp-log-processor:latest
+          imagePullPolicy: Always
           env:
             - name: POSTGRES_HOST
               value: "postgres-service"
@@ -74,23 +60,25 @@ spec:
                 secretKeyRef:
                   name: wgp-secrets
                   key: POSTGRES_DB
-            - name: LOG_FILE
-              value: "/var/log/webserver/access.log"
             - name: GEOIP_DB
               value: "/app/geoip/GeoLite2-City.mmdb"
-            - name: BATCH_SIZE
-              value: "100"
-            - name: FLUSH_INTERVAL
-              value: "5.0"
-            - name: DEFAULT_SERVER_TYPE
-              valueFrom:
-                secretKeyRef:
-                  name: wgp-secrets
-                  key: DEFAULT_SERVER_TYPE
+            - name: HOSTS_CONFIG
+              value: "/app/config/hosts.yml"
+            - name: POSITION_FILE
+              value: "/app/data/positions.json"
           volumeMounts:
-            - name: logstash-logs
-              mountPath: /var/log/webserver
+            # SSH key for remote server access
+            - name: ssh-key
+              mountPath: /app/ssh
               readOnly: true
+            # Hosts configuration
+            - name: hosts-config
+              mountPath: /app/config
+              readOnly: true
+            # Position tracking (persistent)
+            - name: position-data
+              mountPath: /app/data
+            # GeoIP database (optional)
             - name: geoip-data
               mountPath: /app/geoip
               readOnly: true
@@ -102,9 +90,15 @@ spec:
               memory: "512Mi"
               cpu: "500m"
       volumes:
-        - name: logstash-logs
+        - name: ssh-key
+          secret:
+            secretName: wgp-ssh-key
+            defaultMode: 0400
+        - name: hosts-config
+          configMap:
+            name: wgp-hosts-config
+        - name: position-data
           persistentVolumeClaim:
-            claimName: logstash-logs-pvc
+            claimName: log-processor-data-pvc
         - name: geoip-data
-          emptyDir: {}  # Reemplazar con ConfigMap o Secret con el archivo .mmdb
-          # Para producción, usar un PVC o un initContainer que descargue el archivo
+          emptyDir: {}

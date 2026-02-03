@@ -1,8 +1,8 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # WGP - Web Geo Profiler - Kustomization
-# Supports: Nginx, Apache
+# PULL-based Architecture (no Logstash)
 # ═══════════════════════════════════════════════════════════════════════════
-# Permite desplegar todos los recursos con: kubectl apply -k .
+# Desplegar con: kubectl apply -k .
 # ═══════════════════════════════════════════════════════════════════════════
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -15,7 +15,6 @@ resources:
   - configmap.yaml
   - pvc.yaml
   - postgres-deployment.yaml
-  - logstash-deployment.yaml
   - log-processor-deployment.yaml
   - grafana-deployment.yaml
   - retention-cronjob.yaml
@@ -23,13 +22,10 @@ resources:
 
 commonLabels:
   app.kubernetes.io/managed-by: kustomize
-  app.kubernetes.io/version: "1.0.0"
+  app.kubernetes.io/version: "2.0.0"
 
-# Configuración común de imágenes (para actualizar versiones fácilmente)
 images:
   - name: postgres
     newTag: 16-alpine
-  - name: docker.elastic.co/logstash/logstash
-    newTag: 8.11.1
   - name: grafana/grafana
     newTag: latest

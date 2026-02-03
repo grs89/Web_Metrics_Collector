@@ -1,65 +1,52 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # WGP - Web Geo Profiler - Persistent Volume Claims
-# Supports: Nginx, Apache
+# PULL-based Architecture
 # ═══════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: postgres-pvc
+  name: postgres-data-pvc
   namespace: wgp
   labels:
-    app.kubernetes.io/name: postgres
+    app.kubernetes.io/name: postgres-data
     app.kubernetes.io/part-of: web-geo-profiler
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi
-  # storageClassName: standard  # Descomentar y ajustar según tu cluster
+      storage: 50Gi
+  # storageClassName: standard  # Uncomment for cloud providers
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: grafana-pvc
+  name: grafana-data-pvc
   namespace: wgp
   labels:
-    app.kubernetes.io/name: grafana
+    app.kubernetes.io/name: grafana-data
     app.kubernetes.io/part-of: web-geo-profiler
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 5Gi
+      storage: 1Gi
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: logstash-data-pvc
+  name: log-processor-data-pvc
   namespace: wgp
   labels:
-    app.kubernetes.io/name: logstash
+    app.kubernetes.io/name: log-processor-data
     app.kubernetes.io/part-of: web-geo-profiler
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: logstash-logs-pvc
-  namespace: wgp
-  labels:
-    app.kubernetes.io/name: logstash
-    app.kubernetes.io/part-of: web-geo-profiler
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
+      storage: 100Mi

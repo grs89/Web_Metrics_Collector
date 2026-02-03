@@ -1,328 +1,62 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # WGP - Web Geo Profiler - ConfigMaps
-# Supports: Nginx, Apache
+# PULL-based Architecture
 # ═══════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: logstash-config
+  name: wgp-hosts-config
   namespace: wgp
   labels:
-    app.kubernetes.io/name: logstash
+    app.kubernetes.io/name: wgp-config
     app.kubernetes.io/part-of: web-geo-profiler
 data:
-  logstash.yml: |
-    http.host: "0.0.0.0"
-    xpack.monitoring.enabled: false
-    pipeline.workers: 2
-    pipeline.batch.size: 125
-    pipeline.batch.delay: 50
-  
-  webserver.conf: |
-    input {
-      beats {
-        port => 5044
-        host => "0.0.0.0"
-      }
-      
-      tcp {
-        port => 5000
-        codec => json_lines
-      }
-      
-      udp {
-        port => 5000
-        codec => json_lines
-      }
-    }
+  hosts.yml: |
+    # ═══════════════════════════════════════════════════════════════════════════
+    # WGP - Remote Hosts Configuration
+    # Define web servers to collect logs from via SSH
+    # ═══════════════════════════════════════════════════════════════════════════
     
-    filter {
-      # Default server type
-      if ![log_type] {
-        mutate {
-          add_field => { "log_type" => "nginx_access" }
-        }
-      }
-      
-      # Parse JSON logs (Nginx/Apache)
-      if [message] =~ /^\{.*\}$/ {
-        json {
-          source => "message"
-          target => "weblog"
-        }
-      }
-      
-      # Parse Apache Combined Log Format
-      if ![weblog] and [log_type] =~ /apache/ {
-        grok {
-          match => { 
-            "message" => '%{IPORHOST:remote_addr} %{USER:ident} %{USER:remote_user} \[%{HTTPDATE:timestamp}\] "(?:%{WORD:request_method} %{NOTSPACE:request_uri}(?: HTTP/%{NUMBER:http_version})?|%{DATA:rawrequest})" %{NUMBER:status} (?:%{NUMBER:body_bytes_sent}|-)( "%{DATA:http_referer}")?( "%{DATA:http_user_agent}")?'
-          }
-          target => "weblog"
-        }
-        
-        if [weblog][timestamp] {
-          date {
-            match => [ "[weblog][timestamp]", "dd/MMM/yyyy:HH:mm:ss Z" ]
-            target => "@timestamp"
-          }
-        }
-      }
-      
-      # Parse Nginx timestamp
-      if [weblog][timestamp] and [log_type] =~ /nginx/ {
-        date {
-          match => [ "[weblog][timestamp]", "ISO8601" ]
-          target => "@timestamp"
-        }
-      }
-      
-      # Normalize fields
-      mutate {
-        add_field => {
-          "log_timestamp" => "%{[weblog][timestamp]}"
-          "remote_addr" => "%{[weblog][remote_addr]}"
-          "request_method" => "%{[weblog][request_method]}"
-          "request_uri" => "%{[weblog][request_uri]}"
-          "status" => "%{[weblog][status]}"
-          "body_bytes_sent" => "%{[weblog][body_bytes_sent]}"
-          "http_referer" => "%{[weblog][http_referer]}"
-          "http_user_agent" => "%{[weblog][http_user_agent]}"
-        }
-      }
-      
-      if [weblog][request_time] {
-        mutate {
-          add_field => { "request_time" => "%{[weblog][request_time]}" }
-        }
-      }
-      
-      if [weblog][http_x_forwarded_for] {
-        mutate {
-          add_field => { "http_x_forwarded_for" => "%{[weblog][http_x_forwarded_for]}" }
-        }
-      }
-      
-      mutate {
-        convert => {
-          "status" => "integer"
-          "body_bytes_sent" => "integer"
-          "request_time" => "float"
-        }
-      }
-    }
+    global:
+      pull_interval: 30
+      ssh_timeout: 10
+      ssh_key_path: /app/ssh/id_rsa
+      ssh_user: wgp
     
-    output {
-      file {
-        path => "/usr/share/logstash/data/webserver-logs/access.log"
-        codec => json_lines
-      }
-    }
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-init
-  namespace: wgp
-  labels:
-    app.kubernetes.io/name: postgres
-    app.kubernetes.io/part-of: web-geo-profiler
-data:
-  01-schema.sql: |
-    -- Enable required extensions
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    hosts:
+      # ─────────────────────────────────────────────────────────────────────────
+      # Example Nginx Server - UPDATE WITH YOUR SERVERS
+      # ─────────────────────────────────────────────────────────────────────────
+      - name: nginx-server-1
+        enabled: false  # Enable when configured
+        host: 192.168.1.10
+        port: 22
+        server_type: nginx
+        log_paths:
+          - /var/log/nginx/access.log
+        log_format: json
     
-    -- Main access logs table (supports Nginx and Apache)
-    CREATE TABLE web_access_logs (
-        id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        server_type     VARCHAR(20) DEFAULT 'nginx',
-        remote_addr     INET NOT NULL,
-        remote_user     VARCHAR(255),
-        request_method  VARCHAR(10),
-        request_uri     TEXT,
-        request         TEXT,
-        status          SMALLINT NOT NULL,
-        body_bytes_sent BIGINT DEFAULT 0,
-        request_time    DECIMAL(10, 6),
-        request_length  INTEGER,
-        http_referer    TEXT,
-        http_user_agent TEXT,
-        http_x_forwarded_for TEXT,
-        host            VARCHAR(255),
-        server_name     VARCHAR(255),
-        upstream_addr   VARCHAR(255),
-        upstream_response_time VARCHAR(50),
-        ssl_protocol    VARCHAR(20),
-        ssl_cipher      VARCHAR(100),
-        connection      BIGINT,
-        connection_requests INTEGER,
-        gzip_ratio      VARCHAR(20),
-        country_code    CHAR(2),
-        country_name    VARCHAR(100),
-        city            VARCHAR(255),
-        region          VARCHAR(255),
-        latitude        DECIMAL(9, 6),
-        longitude       DECIMAL(9, 6),
-        timezone        VARCHAR(50),
-        isp             VARCHAR(255),
-        asn             INTEGER,
-        as_org          VARCHAR(255),
-        created_at      TIMESTAMPTZ DEFAULT NOW()
-    );
-    
-    -- Indexes
-    CREATE INDEX idx_logs_timestamp ON web_access_logs (timestamp DESC);
-    CREATE INDEX idx_logs_timestamp_date ON web_access_logs ((timestamp::DATE));
-    CREATE INDEX idx_logs_remote_addr ON web_access_logs (remote_addr);
-    CREATE INDEX idx_logs_status ON web_access_logs (status);
-    CREATE INDEX idx_logs_country ON web_access_logs (country_code);
-    CREATE INDEX idx_logs_geo ON web_access_logs (latitude, longitude) WHERE latitude IS NOT NULL;
-    CREATE INDEX idx_logs_uri ON web_access_logs USING gin (request_uri gin_trgm_ops);
-    CREATE INDEX idx_logs_timestamp_status ON web_access_logs (timestamp DESC, status);
-    CREATE INDEX idx_logs_timestamp_country ON web_access_logs (timestamp DESC, country_code);
-    CREATE INDEX idx_logs_server_type ON web_access_logs (server_type);
-    CREATE INDEX idx_logs_timestamp_server ON web_access_logs (timestamp DESC, server_type);
-    
-    -- Hourly metrics table
-    CREATE TABLE web_metrics_hourly (
-        id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        hour            TIMESTAMPTZ NOT NULL,
-        server_type     VARCHAR(20) DEFAULT 'nginx',
-        total_requests  BIGINT DEFAULT 0,
-        requests_2xx    BIGINT DEFAULT 0,
-        requests_3xx    BIGINT DEFAULT 0,
-        requests_4xx    BIGINT DEFAULT 0,
-        requests_5xx    BIGINT DEFAULT 0,
-        avg_response_time DECIMAL(10, 6),
-        max_response_time DECIMAL(10, 6),
-        min_response_time DECIMAL(10, 6),
-        p95_response_time DECIMAL(10, 6),
-        p99_response_time DECIMAL(10, 6),
-        total_bytes_sent BIGINT DEFAULT 0,
-        unique_ips      INTEGER DEFAULT 0,
-        unique_countries INTEGER DEFAULT 0,
-        created_at      TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(hour, server_type)
-    );
-    
-    CREATE INDEX idx_metrics_hour ON web_metrics_hourly (hour DESC);
-    
-    -- Views for Grafana
-    CREATE VIEW v_requests_per_second AS
-    SELECT 
-        date_trunc('second', timestamp) AS time,
-        server_type,
-        COUNT(*) AS requests
-    FROM web_access_logs
-    WHERE timestamp > NOW() - INTERVAL '5 minutes'
-    GROUP BY date_trunc('second', timestamp), server_type
-    ORDER BY time DESC;
-    
-    CREATE VIEW v_status_distribution AS
-    SELECT 
-        server_type,
-        CASE 
-            WHEN status BETWEEN 200 AND 299 THEN '2xx Success'
-            WHEN status BETWEEN 300 AND 399 THEN '3xx Redirect'
-            WHEN status BETWEEN 400 AND 499 THEN '4xx Client Error'
-            WHEN status BETWEEN 500 AND 599 THEN '5xx Server Error'
-            ELSE 'Other'
-        END AS status_group,
-        status,
-        COUNT(*) AS count
-    FROM web_access_logs
-    WHERE timestamp > NOW() - INTERVAL '24 hours'
-    GROUP BY server_type, status
-    ORDER BY count DESC;
-    
-    CREATE VIEW v_geo_distribution AS
-    SELECT 
-        server_type,
-        country_code,
-        country_name,
-        latitude,
-        longitude,
-        COUNT(*) AS request_count,
-        COUNT(DISTINCT remote_addr) AS unique_visitors
-    FROM web_access_logs
-    WHERE 
-        timestamp > NOW() - INTERVAL '24 hours'
-        AND latitude IS NOT NULL
-    GROUP BY server_type, country_code, country_name, latitude, longitude
-    ORDER BY request_count DESC;
-    
-    CREATE VIEW v_server_summary AS
-    SELECT 
-        server_type,
-        COUNT(*) AS total_requests,
-        COUNT(DISTINCT remote_addr) AS unique_ips,
-        COUNT(DISTINCT country_code) AS unique_countries,
-        AVG(request_time) AS avg_response_time,
-        SUM(body_bytes_sent) AS total_bytes
-    FROM web_access_logs
-    WHERE timestamp > NOW() - INTERVAL '24 hours'
-    GROUP BY server_type;
-    
-    -- Cleanup function
-    CREATE OR REPLACE FUNCTION cleanup_old_logs(retention_days INTEGER DEFAULT 365)
-    RETURNS INTEGER AS $$
-    DECLARE
-        deleted_count INTEGER;
-    BEGIN
-        DELETE FROM web_access_logs 
-        WHERE timestamp < NOW() - (retention_days || ' days')::INTERVAL;
-        GET DIAGNOSTICS deleted_count = ROW_COUNT;
-        DELETE FROM web_metrics_hourly 
-        WHERE hour < NOW() - (retention_days || ' days')::INTERVAL;
-        RETURN deleted_count;
-    END;
-    $$ LANGUAGE plpgsql;
-    
-    GRANT SELECT ON ALL TABLES IN SCHEMA public TO PUBLIC;
-    GRANT USAGE ON SCHEMA public TO PUBLIC;
+      # ─────────────────────────────────────────────────────────────────────────
+      # Example Apache Server
+      # ─────────────────────────────────────────────────────────────────────────
+      - name: apache-server-1
+        enabled: false
+        host: 192.168.1.11
+        port: 22
+        server_type: apache
+        log_paths:
+          - /var/log/apache2/access.log
+        log_format: combined
 
-  02-extensions.sql: |
-    -- Additional PostgreSQL extensions
-    CREATE EXTENSION IF NOT EXISTS pg_trgm;
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-datasources
+  name: grafana-dashboards
   namespace: wgp
   labels:
-    app.kubernetes.io/name: grafana
-    app.kubernetes.io/part-of: web-geo-profiler
-data:
-  datasources.yml: |
-    apiVersion: 1
-    datasources:
-      - name: PostgreSQL
-        type: postgres
-        url: postgres-service:5432
-        database: web_logs
-        user: wgp_user
-        secureJsonData:
-          password: $POSTGRES_PASSWORD
-        jsonData:
-          sslmode: disable
-          maxOpenConns: 10
-          maxIdleConns: 10
-          connMaxLifetime: 14400
-          postgresVersion: 1600
-        isDefault: true
-        editable: true
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-dashboards-config
-  namespace: wgp
-  labels:
-    app.kubernetes.io/name: grafana
+    app.kubernetes.io/name: grafana-dashboards
     app.kubernetes.io/part-of: web-geo-profiler
 data:
   dashboards.yml: |
@@ -330,9 +64,117 @@ data:
     providers:
       - name: 'default'
         orgId: 1
-        folder: 'WGP'
+        folder: ''
         type: file
         disableDeletion: false
-        updateIntervalSeconds: 30
+        updateIntervalSeconds: 10
         options:
           path: /var/lib/grafana/dashboards
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: wgp
+  labels:
+    app.kubernetes.io/name: grafana-datasources
+    app.kubernetes.io/part-of: web-geo-profiler
+data:
+  datasources.yml: |
+    apiVersion: 1
+    datasources:
+      - name: PostgreSQL
+        type: postgres
+        uid: wgp-postgres
+        url: postgres-service:5432
+        database: web_logs
+        user: wgp_user
+        secureJsonData:
+          password: wgp_secure_password_2024
+        jsonData:
+          sslmode: disable
+          maxOpenConns: 10
+          maxIdleConns: 5
+          connMaxLifetime: 14400
+          postgresVersion: 1600
+          timescaledb: false
+        isDefault: true
+        editable: false
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: wgp
+  labels:
+    app.kubernetes.io/name: postgres-init
+    app.kubernetes.io/part-of: web-geo-profiler
+data:
+  01-schema.sql: |
+    -- ═══════════════════════════════════════════════════════════════════════════
+    -- WGP - Web Access Logs Schema (Multi-server: Nginx + Apache, Multi-host)
+    -- ═══════════════════════════════════════════════════════════════════════════
+    
+    CREATE TABLE IF NOT EXISTS web_access_logs (
+        id BIGSERIAL PRIMARY KEY,
+        timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        server_type VARCHAR(20) NOT NULL DEFAULT 'nginx',
+        source_host VARCHAR(255),
+        remote_addr INET,
+        remote_user VARCHAR(255),
+        request_method VARCHAR(10),
+        request_uri TEXT,
+        request TEXT,
+        status SMALLINT,
+        body_bytes_sent BIGINT,
+        request_time FLOAT,
+        request_length BIGINT,
+        http_referer TEXT,
+        http_user_agent TEXT,
+        http_x_forwarded_for VARCHAR(255),
+        host VARCHAR(255),
+        server_name VARCHAR(255),
+        upstream_addr VARCHAR(255),
+        upstream_response_time VARCHAR(255),
+        ssl_protocol VARCHAR(20),
+        ssl_cipher VARCHAR(100),
+        connection BIGINT,
+        connection_requests BIGINT,
+        gzip_ratio VARCHAR(20),
+        country_code VARCHAR(2),
+        country_name VARCHAR(100),
+        city VARCHAR(100),
+        region VARCHAR(100),
+        latitude FLOAT,
+        longitude FLOAT,
+        timezone VARCHAR(50)
+    );
+    
+    -- Indexes
+    CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON web_access_logs (timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_logs_server_type ON web_access_logs (server_type);
+    CREATE INDEX IF NOT EXISTS idx_logs_source_host ON web_access_logs (source_host);
+    CREATE INDEX IF NOT EXISTS idx_logs_status ON web_access_logs (status);
+    CREATE INDEX IF NOT EXISTS idx_logs_remote_addr ON web_access_logs (remote_addr);
+    CREATE INDEX IF NOT EXISTS idx_logs_country ON web_access_logs (country_code);
+    
+    -- Host Summary View
+    CREATE OR REPLACE VIEW v_host_summary AS
+    SELECT 
+        COALESCE(source_host, 'unknown') AS source_host,
+        server_type,
+        COUNT(*) AS total_requests,
+        COUNT(*) FILTER (WHERE status >= 400) AS error_count,
+        COUNT(DISTINCT remote_addr) AS unique_ips,
+        COUNT(DISTINCT country_code) AS countries,
+        ROUND(AVG(request_time)::numeric, 3) AS avg_response
+    FROM web_access_logs
+    WHERE timestamp > NOW() - INTERVAL '24 hours'
+    GROUP BY source_host, server_type
+    ORDER BY total_requests DESC;
+    
+    -- Grant permissions
+    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO wgp_user;
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO wgp_user;

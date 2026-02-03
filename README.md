@@ -1,6 +1,6 @@
 # 🌐 WGP - Web Geo Profiler
 
-Sistema completo de monitoreo y análisis de logs de acceso de servidores web con geolocalización, métricas en tiempo real y visualización en Grafana. Diseñado para recibir logs de **Nginx** y **Apache** remotos mediante **Filebeat**.
+Sistema de monitoreo y análisis de logs de servidores web con geolocalización, métricas en tiempo real y visualización en Grafana. Soporta **Nginx** y **Apache** con recolección centralizada via **SSH**.
 
 ![Grafana Dashboard](https://img.shields.io/badge/Grafana-Dashboard-orange?style=for-the-badge&logo=grafana)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=for-the-badge&logo=postgresql)
@@ -8,20 +8,47 @@ Sistema completo de monitoreo y análisis de logs de acceso de servidores web co
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-Ready-326CE5?style=for-the-badge&logo=kubernetes)
 ![Nginx](https://img.shields.io/badge/Nginx-Supported-009639?style=for-the-badge&logo=nginx)
 ![Apache](https://img.shields.io/badge/Apache-Supported-D22128?style=for-the-badge&logo=apache)
-![Filebeat](https://img.shields.io/badge/Filebeat-8.x-yellow?style=for-the-badge&logo=elastic)
 
 ## ✨ Características
 
 - 📊 **Métricas en tiempo real** - Requests/segundo, tiempos de respuesta, códigos de estado
 - 🌍 **Geomap interactivo** - Visualiza el origen geográfico de las visitas
 - 🗄️ **PostgreSQL** - Almacenamiento robusto con retención de 1 año
-- 📈 **Dashboards Grafana** - Paneles preconfigurados y listos para usar
+- 📈 **Dashboards Grafana** - Paneles preconfigurados multi-host
 - 🔍 **Análisis detallado** - Top IPs, URIs, países, user agents
-- ⏱️ **Percentiles de latencia** - P95, P99 para monitoreo de rendimiento
-- 🐳 **Docker Compose** - Despliegue simple para desarrollo y servidores individuales
+- 🐳 **Docker Compose** - Despliegue simple
 - ☸️ **Kubernetes** - Despliegue escalable para producción
-- 📡 **Filebeat** - Recibe logs de servidores web remotos
 - 🔧 **Multi-servidor** - Soporta **Nginx** y **Apache** simultáneamente
+- 🖥️ **Multi-host** - Filtra y visualiza por servidor origen
+- 🚀 **Arquitectura PULL** - Sin agentes, recolección via SSH
+
+## 🏗️ Arquitectura
+
+```
+┌─────────────────────────────────────────────────┐
+│                 WGP Server                       │
+│  ┌─────────────┐   ┌───────────┐   ┌──────────┐ │
+│  │Log Processor│──▶│ PostgreSQL│──▶│  Grafana │ │
+│  │   (PULL)    │   └───────────┘   └──────────┘ │
+│  └──────┬──────┘                                │
+└─────────┼───────────────────────────────────────┘
+          │ SSH (cada 30s)
+    ┌─────┴─────┬─────────────┐
+    ▼           ▼             ▼
+┌────────┐  ┌────────┐   ┌────────┐
+│ Nginx  │  │ Apache │   │Server N│
+│Server 1│  │Server 2│   │        │
+└────────┘  └────────┘   └────────┘
+```
+
+### Ventajas de Arquitectura PULL
+
+| Característica | Beneficio |
+|----------------|-----------|
+| 🚀 **Sin Logstash** | ~1GB menos de RAM |
+| 📦 **Sin agentes** | No necesita instalar Filebeat |
+| 🔒 **Sin puertos abiertos** | Servidores no exponen servicios |
+| 🎛️ **Control centralizado** | Gestión desde un solo punto |
 
 ## 🖥️ Servidores Web Soportados
 
@@ -37,21 +64,6 @@ Sistema completo de monitoreo y análisis de logs de acceso de servidores web co
 | 🐳 **Docker Compose** | Desarrollo, servidores individuales | [Web_Metric_Collector_Docker/](./Web_Metric_Collector_Docker/) |
 | ☸️ **Kubernetes** | Producción, alta disponibilidad | [Web_Metric_Collector_K8S/](./Web_Metric_Collector_K8S/) |
 
-## 🏗️ Arquitectura
-
-```
-┌─────────────────────────────┐         ┌─────────────────────────────────────────┐
-│   SERVIDOR WEB REMOTO       │         │           SERVIDOR WGP                  │
-│   (Nginx / Apache)          │         │       (Docker / Kubernetes)             │
-│                             │         │                                         │
-│  WebServer ──▶ Filebeat ────────────▶ Logstash ──▶ Log Processor ──▶ PostgreSQL│
-│           (logs JSON)       │  :5044  │                  + GeoIP        │       │
-└─────────────────────────────┘         │                                 ▼       │
-                                        │                             Grafana     │
-                                        │                              :3000      │
-                                        └─────────────────────────────────────────┘
-```
-
 ## 🚀 Inicio Rápido
 
 ### Docker Compose
@@ -59,13 +71,22 @@ Sistema completo de monitoreo y análisis de logs de acceso de servidores web co
 ```bash
 cd Web_Metric_Collector_Docker
 
-# Configurar
+# 1. Configurar
 cp env.example .env
 
-# (Opcional) GeoIP
+# 2. Generar SSH key
+ssh-keygen -t rsa -b 4096 -f ./ssh/id_rsa -N ""
+
+# 3. Copiar a servidores web
+ssh-copy-id -i ./ssh/id_rsa.pub wgp@TU_SERVIDOR
+
+# 4. Configurar hosts
+nano config/hosts.yml
+
+# 5. (Opcional) GeoIP
 MAXMIND_LICENSE_KEY=tu_clave ./scripts/download-geoip.sh
 
-# Iniciar
+# 6. Iniciar
 docker compose up -d
 ```
 
@@ -75,7 +96,11 @@ docker compose up -d
 cd Web_Metric_Collector_K8S
 
 # Modificar secrets.yaml con tus credenciales
-# Luego desplegar con Kustomize
+# Crear secret con SSH key
+kubectl create secret generic wgp-ssh-key \
+  --from-file=id_rsa=./ssh/id_rsa -n wgp
+
+# Desplegar
 kubectl apply -k .
 ```
 
@@ -84,316 +109,161 @@ kubectl apply -k .
 ```
 WGP/
 ├── README.md                          # Este archivo
-├── .gitignore                         # Archivos ignorados por Git
 │
-├── Web_Metric_Collector_Docker/       # 🐳 Despliegue con Docker Compose
+├── Web_Metric_Collector_Docker/       # 🐳 Docker Compose
 │   ├── docker-compose.yml
-│   ├── env.example
-│   ├── README.md
-│   ├── filebeat/
+│   ├── config/
+│   │   └── hosts.yml                  # Configuración de hosts
+│   ├── ssh/                           # SSH keys
 │   ├── grafana/
-│   ├── log-processor/                 # Soporta Nginx + Apache
-│   ├── logstash/
-│   ├── nginx/
-│   ├── nginx-server/
-│   ├── postgres/
-│   └── scripts/
+│   ├── log-processor/                 # PULL via SSH
+│   └── postgres/
 │
-└── Web_Metric_Collector_K8S/          # ☸️ Despliegue en Kubernetes
-    ├── README.md
+└── Web_Metric_Collector_K8S/          # ☸️ Kubernetes
     ├── kustomization.yaml
-    ├── namespace.yaml
-    ├── secrets.yaml
-    ├── configmap.yaml
-    ├── pvc.yaml
-    ├── postgres-deployment.yaml
-    ├── logstash-deployment.yaml
-    ├── log-processor-deployment.yaml
-    ├── grafana-deployment.yaml
-    ├── retention-cronjob.yaml
-    └── ingress.yaml
+    └── ...
+```
+
+## ⚙️ Configuración de Hosts
+
+Edita `config/hosts.yml`:
+
+```yaml
+global:
+  pull_interval: 30
+  ssh_user: wgp
+  ssh_key_path: /app/ssh/id_rsa
+
+hosts:
+  - name: nginx-server-1
+    enabled: true
+    host: 192.168.1.10
+    server_type: nginx
+    log_paths:
+      - /var/log/nginx/access.log
+
+  - name: apache-server-1
+    enabled: true
+    host: 192.168.1.11
+    server_type: apache
+    log_paths:
+      - /var/log/apache2/access.log
+```
+
+## 🔧 Preparar Servidor Remoto
+
+```bash
+# 1. Crear usuario wgp en cada servidor
+sudo useradd -m -s /bin/bash wgp
+sudo usermod -aG adm wgp
+
+# 2. Copiar SSH key desde WGP server
+ssh-copy-id -i ./ssh/id_rsa.pub wgp@SERVIDOR_IP
+
+# 3. Verificar
+ssh -i ./ssh/id_rsa wgp@SERVIDOR_IP "tail -1 /var/log/nginx/access.log"
 ```
 
 ## 🌐 URLs y Puertos
 
 | Servicio | Puerto | Descripción |
 |----------|--------|-------------|
-| **Grafana** | 3000 | Dashboard de visualización |
-| **Logstash** | 5044 | Recibe logs de Filebeat |
-| **Logstash** | 5000 | TCP/UDP alternativo |
+| **Grafana** | 3001 | Dashboard de visualización |
 | **PostgreSQL** | 5432 | Base de datos |
 
 ## 📊 Dashboard de Grafana
 
 El dashboard incluye:
 
-### Métricas Principales
-- Total de requests (24h) - Nginx y Apache
-- IPs únicas
-- Países de origen
-- Tiempo de respuesta promedio
-- **Filtro por tipo de servidor** (Nginx/Apache)
+### Filtros Multi-Host
+- 🖥️ **Filtro por Host** - Selecciona servidor específico
+- 🔧 **Filtro por Tipo** - Nginx o Apache
 
 ### Visualizaciones
-- 📈 **Requests Over Time** - Gráfico temporal de requests
-- 🥧 **Status Codes** - Distribución de códigos HTTP
-- 🗺️ **Geomap** - Mapa mundial con ubicaciones de visitantes
-- 📋 **Top Tables** - IPs, países, URIs más frecuentes
-- ⏱️ **Response Time** - Percentiles P95/P99
-- 🖥️ **Server Summary** - Comparación entre Nginx y Apache
+- 📊 **Host Summary** - Tabla resumen por servidor
+- 📈 **Requests Over Time** - Por host
+- 🗺️ **Geomap** - Mapa mundial
+- 📋 **Top Tables** - IPs, países, URIs
 
-## 📡 Configurar Servidor Nginx Remoto
-
-### 1. Configurar formato de logs JSON en Nginx
-
-Edita tu `/etc/nginx/nginx.conf`:
+## 📡 Formato de Logs (Nginx JSON)
 
 ```nginx
 http {
     log_format json_combined escape=json
-        '{'
-            '"timestamp":"$time_iso8601",'
-            '"remote_addr":"$remote_addr",'
-            '"remote_user":"$remote_user",'
-            '"request_method":"$request_method",'
-            '"request_uri":"$request_uri",'
-            '"request":"$request",'
-            '"status":$status,'
-            '"body_bytes_sent":$body_bytes_sent,'
-            '"request_time":$request_time,'
-            '"http_referer":"$http_referer",'
-            '"http_user_agent":"$http_user_agent",'
-            '"http_x_forwarded_for":"$http_x_forwarded_for",'
-            '"host":"$host",'
-            '"server_name":"$server_name"'
-        '}';
+        '{"timestamp":"$time_iso8601","remote_addr":"$remote_addr",'
+        '"request_method":"$request_method","request_uri":"$request_uri",'
+        '"status":$status,"body_bytes_sent":$body_bytes_sent,'
+        '"request_time":$request_time,"http_user_agent":"$http_user_agent"}';
 
     access_log /var/log/nginx/access.log json_combined;
 }
 ```
 
-```bash
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-### 2. Instalar Filebeat para Nginx
-
-```bash
-# Copiar script al servidor Nginx
-scp Web_Metric_Collector_Docker/nginx-server/install-filebeat.sh usuario@servidor:/tmp/
-
-# Ejecutar en el servidor
-sudo /tmp/install-filebeat.sh IP_SERVIDOR_WGP
-```
-
-## 📡 Configurar Servidor Apache Remoto
-
-### 1. Configurar formato de logs JSON en Apache
-
-Edita tu `/etc/apache2/apache2.conf` o `/etc/httpd/conf/httpd.conf`:
+## 📡 Formato de Logs (Apache JSON)
 
 ```apache
-# Habilitar mod_log_config si no está habilitado
-LoadModule log_config_module modules/mod_log_config.so
-
-# Formato JSON para WGP
-LogFormat "{ \"timestamp\":\"%{%Y-%m-%dT%H:%M:%S%z}t\", \"remote_addr\":\"%a\", \"remote_user\":\"%u\", \"request_method\":\"%m\", \"request_uri\":\"%U%q\", \"request\":\"%r\", \"status\":%>s, \"body_bytes_sent\":%B, \"request_time\":%D, \"http_referer\":\"%{Referer}i\", \"http_user_agent\":\"%{User-Agent}i\", \"http_x_forwarded_for\":\"%{X-Forwarded-For}i\", \"host\":\"%v\", \"log_type\":\"apache_access\" }" wgp_json
-
+LogFormat "{ \"timestamp\":\"%{%Y-%m-%dT%H:%M:%S%z}t\", \"remote_addr\":\"%a\", \"request_method\":\"%m\", \"request_uri\":\"%U%q\", \"status\":%>s, \"body_bytes_sent\":%B }" wgp_json
 CustomLog /var/log/apache2/access.log wgp_json
-```
-
-```bash
-# Debian/Ubuntu
-sudo apache2ctl configtest && sudo systemctl reload apache2
-
-# RHEL/CentOS
-sudo apachectl configtest && sudo systemctl reload httpd
-```
-
-### 2. Instalar Filebeat para Apache
-
-Configurar `/etc/filebeat/filebeat.yml`:
-
-```yaml
-filebeat.inputs:
-  - type: log
-    enabled: true
-    paths:
-      - /var/log/apache2/access.log    # Debian/Ubuntu
-      # - /var/log/httpd/access_log    # RHEL/CentOS
-    json.keys_under_root: true
-    json.add_error_key: true
-    fields:
-      log_type: apache_access
-    fields_under_root: true
-
-output.logstash:
-  hosts: ["IP_SERVIDOR_WGP:5044"]
-```
-
-```bash
-sudo systemctl enable filebeat
-sudo systemctl start filebeat
-```
-
-### Formato Combined Log (alternativo)
-
-Si prefieres el formato tradicional de Apache, WGP también lo soporta:
-
-```apache
-LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
-CustomLog /var/log/apache2/access.log combined
-```
-
-Configurar Filebeat sin JSON parsing:
-
-```yaml
-filebeat.inputs:
-  - type: log
-    enabled: true
-    paths:
-      - /var/log/apache2/access.log
-    fields:
-      log_type: apache_access
-    fields_under_root: true
-
-output.logstash:
-  hosts: ["IP_SERVIDOR_WGP:5044"]
 ```
 
 ## 🌍 GeoIP (Opcional)
 
-Para obtener datos de geolocalización:
-
-1. Regístrate en [MaxMind GeoLite2](https://www.maxmind.com/en/geolite2/signup) (gratis)
-2. Genera una license key
-3. Ejecuta:
-
-**Docker:**
 ```bash
+# Registrarse en MaxMind (gratis)
+# https://www.maxmind.com/en/geolite2/signup
+
 cd Web_Metric_Collector_Docker
 MAXMIND_LICENSE_KEY=tu_clave ./scripts/download-geoip.sh
 docker compose restart log-processor
 ```
 
-**Kubernetes:**
-```bash
-# Descargar y crear ConfigMap
-kubectl create configmap geoip-data \
-  --from-file=GeoLite2-City.mmdb=./GeoLite2-City.mmdb \
-  -n wgp
-```
-
-## 🔒 Seguridad en Producción
-
-1. **Cambiar contraseñas** en `.env` o `secrets.yaml`
-2. **Usar SSL/TLS** entre Filebeat y Logstash
-3. **Firewall**: Solo abrir puertos necesarios
-4. **VPN/Red privada**: Si es posible, usar red interna
-5. **Kubernetes**: Usar Sealed Secrets o Vault para secretos
-
 ## 🔍 Consultas SQL Útiles
 
 ```sql
--- Ver últimos logs (ambos servidores)
-SELECT server_type, * FROM web_access_logs 
-ORDER BY timestamp DESC LIMIT 100;
+-- Resumen por host
+SELECT * FROM v_host_summary;
 
--- Requests por servidor web (últimas 24h)
-SELECT server_type, COUNT(*) as requests
+-- Requests por servidor (últimas 24h)
+SELECT source_host, server_type, COUNT(*) as requests
 FROM web_access_logs
 WHERE timestamp > NOW() - INTERVAL '24 hours'
-GROUP BY server_type;
+GROUP BY source_host, server_type;
 
--- Requests por país y servidor (últimas 24h)
-SELECT server_type, country_name, COUNT(*) as requests
-FROM web_access_logs
-WHERE timestamp > NOW() - INTERVAL '24 hours'
-GROUP BY server_type, country_name
-ORDER BY requests DESC;
-
--- IPs con más errores por servidor
-SELECT server_type, remote_addr, COUNT(*) as errors
+-- IPs con más errores
+SELECT source_host, remote_addr, COUNT(*) as errors
 FROM web_access_logs
 WHERE status >= 400
-GROUP BY server_type, remote_addr
+GROUP BY source_host, remote_addr
 ORDER BY errors DESC LIMIT 20;
-
--- Comparación de tiempos de respuesta
-SELECT server_type, 
-       AVG(request_time) as avg_time,
-       PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY request_time) as p95,
-       PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY request_time) as p99
-FROM web_access_logs
-WHERE timestamp > NOW() - INTERVAL '24 hours'
-GROUP BY server_type;
-
--- Ejecutar limpieza manual
-SELECT cleanup_old_logs(365);
 ```
 
 ## 📝 Troubleshooting
 
-### Filebeat no envía logs
-
+### Conexión SSH falla
 ```bash
-# Verificar conectividad
-telnet IP_SERVIDOR_WGP 5044
-
-# Ver logs de Filebeat
-sudo tail -f /var/log/filebeat/filebeat
-
-# Testear output
-sudo filebeat test output
+# Verificar desde container
+docker compose exec log-processor ssh -i /app/ssh/id_rsa wgp@IP "echo OK"
 ```
 
-### No aparecen datos en Grafana
-
-1. Verificar Logstash: `docker compose logs -f logstash` o `kubectl logs -f deployment/logstash -n wgp`
-2. Verificar log-processor: `docker compose logs -f log-processor` o `kubectl logs -f deployment/log-processor -n wgp`
-3. Verificar formato JSON en servidor web
-
-### GeoIP no funciona
-
+### No aparecen datos
 ```bash
-# Docker
-ls -la Web_Metric_Collector_Docker/log-processor/geoip/
-docker compose restart log-processor
+# Ver logs del collector
+docker compose logs -f log-processor
 
-# Kubernetes
-kubectl describe configmap geoip-data -n wgp
-kubectl rollout restart deployment/log-processor -n wgp
+# Verificar posiciones
+cat log-processor-data/positions.json
 ```
 
-### Logs de Apache no se procesan
+## 🔒 Seguridad en Producción
 
-```bash
-# Verificar formato de log
-tail -1 /var/log/apache2/access.log
-
-# Si es JSON, debe empezar con {
-# Si es Combined, debe verse como: 192.168.1.1 - - [02/Feb/2024:10:30:00 +0000] "GET / HTTP/1.1" 200 1234
-```
-
-## 🛠️ Desarrollo
-
-### Generar tráfico de prueba
-
-```bash
-cd Web_Metric_Collector_Docker
-./scripts/generate-test-traffic.sh
-```
-
-### Construir imagen del log-processor
-
-```bash
-cd Web_Metric_Collector_Docker/log-processor
-docker build -t wgp-log-processor:latest .
-```
+1. **Restringir SSH key** - Solo comando tail
+2. **Firewall** - Solo SSH desde WGP server
+3. **VPN** - Si es posible, usar red privada
+4. **Kubernetes** - Usar Sealed Secrets o Vault
 
 ## 📄 Licencia
 
-MIT License - Usar libremente para proyectos personales y comerciales.
+MIT License
 
 ---
 

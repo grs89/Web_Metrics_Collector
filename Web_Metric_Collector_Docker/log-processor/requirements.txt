@@ -1,20 +1,20 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# NGP - Log Processor Dependencies
+# WGP - Log Processor Dependencies (PULL-based architecture)
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Database
 psycopg2-binary==2.9.9
-sqlalchemy==2.0.23
 
 # GeoIP
 geoip2==4.8.0
 maxminddb==2.6.2
 
-# Log parsing and utilities
+# SSH for PULL-based log collection
+paramiko==3.4.0
+
+# Configuration
+pyyaml==6.0.1
+
+# Utilities
 python-dateutil==2.8.2
-watchdog==3.0.0
 requests==2.31.0
-
-# Async support
-asyncio-throttle==1.0.2
-
