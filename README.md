@@ -150,19 +150,73 @@ hosts:
       - /var/log/apache2/access.log
 ```
 
-## 🔧 Preparar Servidor Remoto
+## 📌 Agregar un Nuevo Host (Paso a Paso)
+
+### Paso 1: Generar SSH Key (solo la primera vez)
 
 ```bash
-# 1. Crear usuario wgp en cada servidor
-sudo useradd -m -s /bin/bash wgp
-sudo usermod -aG adm wgp
-
-# 2. Copiar SSH key desde WGP server
-ssh-copy-id -i ./ssh/id_rsa.pub wgp@SERVIDOR_IP
-
-# 3. Verificar
-ssh -i ./ssh/id_rsa wgp@SERVIDOR_IP "tail -1 /var/log/nginx/access.log"
+cd Web_Metric_Collector_Docker
+ssh-keygen -t rsa -b 4096 -f ./ssh/id_rsa -N ""
 ```
+
+### Paso 2: Preparar el Servidor Remoto
+
+Ejecuta estos comandos **en el servidor web que quieres monitorear**:
+
+```bash
+# Crear usuario wgp
+sudo useradd -m -s /bin/bash wgp
+
+# Dar permisos para leer logs
+sudo usermod -aG adm wgp          # Debian/Ubuntu
+# sudo usermod -aG nginx wgp      # RHEL/CentOS (Nginx)
+# sudo usermod -aG apache wgp     # RHEL/CentOS (Apache)
+```
+
+### Paso 3: Copiar SSH Key al Servidor
+
+Ejecuta esto **desde el servidor WGP**:
+
+```bash
+ssh-copy-id -i ./ssh/id_rsa.pub wgp@IP_DEL_SERVIDOR
+```
+
+### Paso 4: Probar Conexión
+
+```bash
+# Probar que puedes leer logs
+ssh -i ./ssh/id_rsa wgp@IP_DEL_SERVIDOR "tail -1 /var/log/nginx/access.log"
+```
+
+### Paso 5: Agregar Host a config/hosts.yml
+
+```yaml
+hosts:
+  - name: mi-servidor           # Nombre descriptivo
+    enabled: true               # Activar monitoreo
+    host: 192.168.1.10          # IP del servidor
+    server_type: nginx          # nginx o apache
+    log_paths:
+      - /var/log/nginx/access.log
+```
+
+### Paso 6: Reiniciar y Verificar
+
+```bash
+# Reiniciar log-processor
+docker compose restart log-processor
+
+# Ver logs para confirmar conexión
+docker compose logs -f log-processor
+```
+
+### Paso 7: Verificar en Grafana
+
+1. Abre http://localhost:3001
+2. Usuario: `admin` / Password: `admin123`
+3. En el dashboard, selecciona tu host en el filtro "Host"
+
+> 💡 **Tip**: Los logs se recolectan cada 30 segundos. Espera un minuto para ver datos.
 
 ## 🌐 URLs y Puertos
 
