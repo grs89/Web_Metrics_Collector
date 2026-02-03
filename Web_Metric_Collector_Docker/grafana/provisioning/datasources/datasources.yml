@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# NGP - Grafana Datasources Configuration
+# WGP - Grafana Datasources Configuration
 # ═══════════════════════════════════════════════════════════════════════════
 
 apiVersion: 1
@@ -7,12 +7,12 @@ apiVersion: 1
 datasources:
   - name: PostgreSQL
     type: postgres
-    uid: ngp-postgres
+    uid: wgp-postgres
     url: postgres:5432
-    database: nginx_logs
-    user: ngp_user
+    database: web_logs
+    user: wgp_user
     secureJsonData:
-      password: ngp_secure_password_2024
+      password: wgp_secure_password_2024
     jsonData:
       sslmode: disable
       maxOpenConns: 10
@@ -22,4 +22,3 @@ datasources:
       timescaledb: false
     isDefault: true
     editable: false
-

@@ -15,6 +15,7 @@ CREATE TABLE web_access_logs (
     
     -- Server identification
     server_type     VARCHAR(20) DEFAULT 'nginx',  -- 'nginx' or 'apache'
+    source_host     VARCHAR(255),                 -- Hostname/IP of the source server
     
     -- Request info
     remote_addr     INET NOT NULL,
@@ -92,6 +93,11 @@ CREATE INDEX idx_logs_timestamp_country ON web_access_logs (timestamp DESC, coun
 CREATE INDEX idx_logs_server_type ON web_access_logs (server_type);
 CREATE INDEX idx_logs_timestamp_server ON web_access_logs (timestamp DESC, server_type);
 
+-- Source host index for filtering by origin server
+CREATE INDEX idx_logs_source_host ON web_access_logs (source_host);
+CREATE INDEX idx_logs_timestamp_host ON web_access_logs (timestamp DESC, source_host);
+CREATE INDEX idx_logs_server_host ON web_access_logs (server_type, source_host);
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Aggregated metrics table (for faster dashboard queries)
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -99,6 +105,7 @@ CREATE TABLE web_metrics_hourly (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     hour            TIMESTAMPTZ NOT NULL,
     server_type     VARCHAR(20) DEFAULT 'nginx',
+    source_host     VARCHAR(255),
     
     -- Request counts
     total_requests  BIGINT DEFAULT 0,
@@ -123,11 +130,12 @@ CREATE TABLE web_metrics_hourly (
     
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     
-    UNIQUE(hour, server_type)
+    UNIQUE(hour, server_type, source_host)
 );
 
 CREATE INDEX idx_metrics_hour ON web_metrics_hourly (hour DESC);
 CREATE INDEX idx_metrics_server ON web_metrics_hourly (server_type);
+CREATE INDEX idx_metrics_host ON web_metrics_hourly (source_host);
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Country statistics table
@@ -184,10 +192,11 @@ CREATE VIEW v_requests_per_second AS
 SELECT 
     date_trunc('second', timestamp) AS time,
     server_type,
+    source_host,
     COUNT(*) AS requests
 FROM web_access_logs
 WHERE timestamp > NOW() - INTERVAL '5 minutes'
-GROUP BY date_trunc('second', timestamp), server_type
+GROUP BY date_trunc('second', timestamp), server_type, source_host
 ORDER BY time DESC;
 
 -- Status code distribution
@@ -246,6 +255,7 @@ LIMIT 100;
 CREATE VIEW v_server_summary AS
 SELECT 
     server_type,
+    source_host,
     COUNT(*) AS total_requests,
     COUNT(DISTINCT remote_addr) AS unique_ips,
     COUNT(DISTINCT country_code) AS unique_countries,
@@ -253,7 +263,25 @@ SELECT
     SUM(body_bytes_sent) AS total_bytes
 FROM web_access_logs
 WHERE timestamp > NOW() - INTERVAL '24 hours'
-GROUP BY server_type;
+GROUP BY server_type, source_host;
+
+-- Host summary view (for multi-host monitoring)
+CREATE VIEW v_host_summary AS
+SELECT 
+    source_host,
+    server_type,
+    COUNT(*) AS total_requests,
+    COUNT(*) FILTER (WHERE status >= 400) AS error_count,
+    COUNT(DISTINCT remote_addr) AS unique_ips,
+    COUNT(DISTINCT country_code) AS unique_countries,
+    AVG(request_time) AS avg_response_time,
+    SUM(body_bytes_sent) AS total_bytes,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+FROM web_access_logs
+WHERE timestamp > NOW() - INTERVAL '24 hours'
+GROUP BY source_host, server_type
+ORDER BY total_requests DESC;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Function to cleanup old data (retention policy)

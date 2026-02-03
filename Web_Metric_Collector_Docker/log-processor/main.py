@@ -177,7 +177,7 @@ class DatabaseHandler:
             return 0
         
         columns = [
-            'timestamp', 'server_type', 'remote_addr', 'remote_user', 'request_method', 'request_uri',
+            'timestamp', 'server_type', 'source_host', 'remote_addr', 'remote_user', 'request_method', 'request_uri',
             'request', 'status', 'body_bytes_sent', 'request_time', 'request_length',
             'http_referer', 'http_user_agent', 'http_x_forwarded_for',
             'host', 'server_name', 'upstream_addr', 'upstream_response_time',
@@ -190,6 +190,7 @@ class DatabaseHandler:
             values.append((
                 log.get('timestamp'),
                 log.get('server_type', 'nginx'),
+                log.get('source_host'),
                 log.get('remote_addr'),
                 log.get('remote_user'),
                 log.get('request_method'),
@@ -285,6 +286,7 @@ class NginxLogParser(BaseLogParser):
             # Clean and validate required fields
             parsed = {
                 'server_type': 'nginx',
+                'source_host': data.get('source_host') or data.get('host_name') or data.get('beat', {}).get('hostname') or data.get('agent', {}).get('hostname'),
                 'timestamp': data.get('timestamp') or datetime.utcnow().isoformat(),
                 'remote_addr': data.get('remote_addr', '0.0.0.0'),
                 'remote_user': data.get('remote_user') if data.get('remote_user') != '-' else None,
@@ -361,6 +363,7 @@ class ApacheLogParser(BaseLogParser):
             # Handle Apache-specific field names
             parsed = {
                 'server_type': 'apache',
+                'source_host': data.get('source_host') or data.get('host_name') or data.get('beat', {}).get('hostname') or data.get('agent', {}).get('hostname'),
                 'timestamp': data.get('timestamp') or data.get('time') or datetime.utcnow().isoformat(),
                 'remote_addr': data.get('remote_addr') or data.get('clientip') or data.get('a') or '0.0.0.0',
                 'remote_user': self._clean_field(data.get('remote_user') or data.get('u')),
