@@ -1,4 +1,4 @@
-# Web Geo Profiler (WMC)
+# 🌐 Web Geo Profiler (WMC)
 
 [🇧🇷 Português](#web-geo-profiler-wmc-português)
 
@@ -6,7 +6,7 @@ WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfi
 
 ![Dashboard Screenshot](docs/images/dashboard_screenshot.png)
 
-## Características
+## ✨ Características
 - **Sin Agentes**: Utiliza SSH para leer registros (no requiere instalación en servidores remotos).
 - **Enriquecimiento**: Agrega Ciudad/País/Latitud/Longitud a cada petición.
 - **Inteligencia de Seguridad**:
@@ -21,7 +21,7 @@ WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfi
 - **Visualización**: Dashboard de Grafana preconfigurado con Mapa Mundial.
 - **Soporte**: Nginx (JSON) y Apache (Formato de Registro Combinado).
 
-## Inicio Rápido (Docker Compose Local)
+## 🚀 Inicio Rápido (Docker Compose Local)
 
 1. **Prerrequisitos**: Docker y Docker Compose.
 2. **Configurar Llaves SSH**: Asegúrate de tener llaves SSH que puedan acceder a tus servidores objetivo. Móntalas en `docker-compose.yml` o colócalas en una carpeta.
@@ -43,7 +43,7 @@ WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfi
    ```
 6. **Acceder a Grafana**: Abre `http://localhost:3000` (Usuario: `admin` / Contraseña: `admin`). El dashboard "WMC Dashboard" está precargado.
 
-## Incorporar un Nuevo Servidor
+## ➕ Incorporar un Nuevo Servidor
 
 Para agregar un nuevo servidor al pool de monitoreo:
 
@@ -57,7 +57,7 @@ Para agregar un nuevo servidor al pool de monitoreo:
    docker-compose restart log-processor
    ```
 
-## Despliegue en Producción (Kubernetes)
+## ☁️ Despliegue en Producción (Kubernetes)
 Los manifiestos se encuentran en `k8s/`.
 1. Actualiza `k8s/configmap.yaml` (generado vía Kustomize) con tu `hosts.yml` real.
 2. Crea offsets/secretos para las llaves SSH.
@@ -68,7 +68,7 @@ Los manifiestos se encuentran en `k8s/`.
 
 ---
 
-# Web Geo Profiler (WMC) - Português
+# 🌐 Web Geo Profiler (WMC) - Português
 
 [🇪🇸 Español](#web-geo-profiler-wmc)
 
@@ -76,7 +76,7 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
 
 ![Dashboard Screenshot](docs/images/dashboard_screenshot.png)
 
-## Funcionalidades
+## ✨ Funcionalidades
 - **Sem Agentes**: Usa SSH para ler logs (sem instalação necessária em servidores remotos).
 - **Enriquecimento**: Adiciona Cidade/País/Lat/Lon a cada requisição.
 - **Inteligência de Segurança**:
@@ -91,7 +91,7 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
 - **Visualização**: Dashboard Grafana pré-configurado com Mapa Mundial.
 - **Suporte**: Nginx (JSON) e Apache (Formato de Log Combinado).
 
-## Início Rápido (Docker Compose Local)
+## 🚀 Início Rápido (Docker Compose Local)
 
 1. **Pré-requisitos**: Docker e Docker Compose.
 2. **Configurar Chaves SSH**: Garanta que você tenha chaves SSH que possam acessar seus servidores de destino. Monte-as no `docker-compose.yml` ou coloque-as em uma pasta.
@@ -113,7 +113,7 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
    ```
 6. **Acessar o Grafana**: Abra `http://localhost:3000` (Usuário: `admin` / Senha: `admin`). O dashboard "WMC Dashboard" está pré-carregado.
 
-## Adicionando um Novo Servidor
+## ➕ Adicionando um Novo Servidor
 
 Para adicionar um novo servidor ao pool de monitoramento:
 
@@ -127,7 +127,7 @@ Para adicionar um novo servidor ao pool de monitoramento:
    docker-compose restart log-processor
    ```
 
-## Implantação em Produção (Kubernetes)
+## ☁️ Implantação em Produção (Kubernetes)
 Os manifestos estão localizados em `k8s/`.
 1. Atualize `k8s/configmap.yaml` (gerado via Kustomize) com seu `hosts.yml` real.
 2. Crie offsets/segredos para as chaves SSH.
