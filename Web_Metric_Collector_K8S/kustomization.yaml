@@ -13,6 +13,7 @@ resources:
   - namespace.yaml
   - secrets.yaml
   - configmap.yaml
+  - dashboard-json.yaml
   - pvc.yaml
   - postgres-deployment.yaml
   - log-processor-deployment.yaml

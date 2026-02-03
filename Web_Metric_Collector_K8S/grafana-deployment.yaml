@@ -62,6 +62,8 @@ spec:
               value: "http://localhost:3000"
             - name: GF_USERS_ALLOW_SIGN_UP
               value: "false"
+            - name: GF_DATE_DEFAULT_TIMEZONE
+              value: "browser"
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -106,7 +108,8 @@ spec:
           configMap:
             name: grafana-dashboards-config
         - name: grafana-dashboards
-          emptyDir: {}  # Para producción, montar el dashboard JSON como ConfigMap
+          configMap:
+            name: wgp-dashboard-json
 ---
 apiVersion: v1
 kind: Service

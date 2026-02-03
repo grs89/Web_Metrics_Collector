@@ -1088,7 +1088,7 @@
         "to": "now"
     },
     "timepicker": {},
-    "timezone": "",
+    "timezone": "browser",
     "title": "WGP - Web Geo Profiler",
     "uid": "wgp-overview",
     "version": 2,
