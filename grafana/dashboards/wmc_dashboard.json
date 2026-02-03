@@ -284,7 +284,7 @@
                     "format": "table",
                     "rawQuery": true,
                     "refId": "A",
-                    "rawSql": "SELECT COALESCE(browser, 'Unknown') as \"Browser\", count(*) as \"Requests\" FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
+                    "rawSql": "SELECT COALESCE(browser, 'Unknown') as metric, count(*) as value FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
                 }
             ],
             "title": "Browser Distribution",
@@ -351,7 +351,7 @@
                     "format": "table",
                     "rawQuery": true,
                     "refId": "A",
-                    "rawSql": "SELECT COALESCE(os, 'Unknown') as \"OS\", count(*) as \"Requests\" FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
+                    "rawSql": "SELECT COALESCE(os, 'Unknown') as metric, count(*) as value FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
                 }
             ],
             "title": "OS Distribution",
