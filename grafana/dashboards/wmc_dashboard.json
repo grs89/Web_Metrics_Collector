@@ -220,7 +220,7 @@
                     },
                     "custom": {
                         "align": "auto",
-                        "displayMode": "color-background",
+                        "displayMode": "auto",
                         "inspect": false
                     },
                     "mappings": [],
@@ -238,7 +238,26 @@
                         ]
                     }
                 },
-                "overrides": []
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "active_users_5m"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.displayMode",
+                                "value": "lcd-gauge"
+                            },
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "continuous-GrYlRd"
+                                }
+                            }
+                        ]
+                    }
+                ]
             },
             "gridPos": {
                 "h": 8,
@@ -267,7 +286,7 @@
                     "format": "table",
                     "rawQuery": true,
                     "refId": "A",
-                    "rawSql": "SELECT hostname as vhost, COUNT(DISTINCT client_ip) as active_users_5m FROM web_access_logs WHERE timestamp >= NOW() - INTERVAL '5 minutes' AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
+                    "rawSql": "SELECT COALESCE(hostname, 'Direct IP / Unknown') as vhost, COUNT(DISTINCT client_ip) as active_users_5m FROM web_access_logs WHERE timestamp >= NOW() - INTERVAL '5 minutes' AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
                 }
             ],
             "title": "🟢 Active Users / vHost (Last 5m)",
