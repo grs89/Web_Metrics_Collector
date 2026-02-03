@@ -23,7 +23,7 @@ WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfi
   - **Usuarios Activos**: Conteo en tiempo real por sitio (vHost).
   - **Desglose Técnico**: Navegador, Sistema Operativo y Dispositivo.
 - **Visualización**: Dashboard de Grafana preconfigurado con Mapa Mundial.
-- **Soporte**: Nginx (JSON) y Apache (Formato de Registro Combinado).
+- **Soporte**: Nginx (JSON), Apache (Formato de Registro Combinado) y **Microsoft IIS** (W3C).
 
 ## 🚀 Inicio Rápido (Docker Compose Local)
 
@@ -62,6 +62,10 @@ Para agregar un nuevo servidor al pool de monitoreo:
 2. **Formato de Registro**:
    - Si usas **Nginx**, configúralo para generar registros JSON (recomendado) o usa el formato combinado estándar.
    - Si usas **Apache**, asegúrate de usar el `Combined Log Format`.
+   - Si usas **IIS**:
+     - Habilita **OpenSSH Server** en Windows.
+     - Usa `type: "iis"` en `hosts.yml`.
+     - El formato debe ser **W3C Standards** (por defecto en IIS).
 3. **Actualizar Configuración**: Agrega la entrada a `hosts.yml` como se muestra arriba.
 4. **Reiniciar**: Reinicia el contenedor del procesador de registros para aplicar los cambios.
    ```bash
@@ -104,7 +108,7 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
   - **Usuários Ativos**: Contagem em tempo real por site (vHost).
   - **Detalhamento Técnico**: Navegador, Sistema Operacional e Dispositivo.
 - **Visualização**: Dashboard Grafana pré-configurado com Mapa Mundial.
-- **Suporte**: Nginx (JSON) e Apache (Formato de Log Combinado).
+- **Suporte**: Nginx (JSON), Apache (Formato de Log Combinado) e **Microsoft IIS** (W3C).
 
 ## 🚀 Início Rápido (Docker Compose Local)
 
@@ -143,6 +147,10 @@ Para adicionar um novo servidor ao pool de monitoramento:
 2. **Formato de Log**:
    - Se usar **Nginx**, configure-o para gerar logs JSON (recomendado) o use o formato combinado padrão.
    - Se usar **Apache**, garanta o `Combined Log Format`.
+   - Se usar **IIS**:
+     - Habilite **OpenSSH Server** no Windows.
+     - Use `type: "iis"` no `hosts.yml`.
+     - O formato deve ser **W3C Standards** (padrão do IIS).
 3. **Atualizar Configuração**: Adicione a entrada ao `hosts.yml` como mostrado acima.
 4. **Reiniciar**: Reinicie o container do processador de logs para aplicar as alterações.
    ```bash
