@@ -35,6 +35,8 @@ services:
 
   log-processor:
     build: ./log_processor
+    env_file:
+      - .env
     container_name: wmc-log-processor
     depends_on:
       - postgres
@@ -43,7 +45,6 @@ services:
       - DB_NAME=wmc_db
       - DB_USER=wmc_user
       - DB_PASSWORD=wmc_password
-      #      - GEOIP_LICENSE_KEY=${GEOIP_LICENSE_KEY}
       - GEOIP_LICENSE_KEY=${GEOIP_LICENSE_KEY}
       - CONFIG_FILE=/config/hosts.yml
     volumes:
