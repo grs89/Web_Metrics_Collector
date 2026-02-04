@@ -1,6 +1,7 @@
 import json
 import re
 import logging
+import urllib.parse
 from datetime import datetime
 
 # Combined Log Format Regex
@@ -29,6 +30,10 @@ class LogParser:
 
             elif 'combined' in log_type:
                return LogParser._parse_clf(line)
+            
+            elif 'iis' in log_type: # IIS W3C Support
+                return LogParser._parse_iis(line)
+                
             else:
                 # Default fallback
                 return LogParser._parse_clf(line)
@@ -53,6 +58,7 @@ class LogParser:
             'raw_log': line
         }
 
+
     @staticmethod
     def _parse_clf(line):
         match = CLF_REGEX.match(line)
@@ -75,3 +81,60 @@ class LogParser:
             'referrer': data.get('referrer'),
             'raw_log': line
         }
+
+    @staticmethod
+    def _parse_iis(line):
+        # Default IIS W3C Fields: date time s-ip cs-method cs-uri-stem cs-uri-query s-port cs-username c-ip cs(User-Agent) cs(Referer) sc-status sc-substatus sc-win32-status time-taken
+        # Note: IIS replaces spaces with + in UA and Referrer
+        
+        # Skip comments
+        if line.startswith('#'):
+            return None
+
+        try:
+            parts = line.split()
+            # Basic validation: standard IIS log has at least 14-15 columns. 
+            # We map aggressively based on standard positions.
+            if len(parts) < 10: 
+                return None
+            
+            # Extract common fields based on standard W3C layout
+            # 0:date 1:time 2:s-ip 3:method 4:uri-stem 5:query 6:port 7:user 8:c-ip 9:ua 10:ref 11:status
+            
+            # Combine Date+Time
+            timestamp_str = f"{parts[0]} {parts[1]}"
+            
+            method = parts[3]
+            uri_stem = parts[4]
+            uri_query = parts[5]
+            client_ip = parts[8]
+            user_agent = urllib.parse.unquote_plus(parts[9])
+            referrer = urllib.parse.unquote_plus(parts[10]) # might be -
+            status = int(parts[11])
+            
+            # Reconstruct Full URI
+            uri = uri_stem
+            if uri_query != '-':
+                uri = f"{uri_stem}?{uri_query}"
+                
+            if referrer == '-':
+                referrer = None
+                
+            if user_agent == '-':
+                user_agent = None
+
+            return {
+                'client_ip': client_ip,
+                'timestamp': timestamp_str, # ISO-like "YYYY-MM-DD HH:MM:SS" is usually fine to parse directly later
+                'method': method,
+                'uri': uri,
+                'status_code': status,
+                'response_size': 0, # IIS default log usually puts size at the end, but variable. defaulting to 0.
+                'user_agent': user_agent,
+                'referrer': referrer,
+                'raw_log': line
+            }
+
+        except (ValueError, IndexError):
+            return None
+
