@@ -63,7 +63,8 @@ Para agregar un nuevo servidor al pool de monitoreo:
 
 1. **Acceso SSH**: Asegúrate de que la máquina que ejecuta WMC tenga acceso mediante llave pública SSH al servidor objetivo.
 2. **Formato de Registro**:
-   - Si usas **Nginx**, configúralo para generar registros JSON (recomendado) o usa el formato combinado estándar.
+   - Si usas **Nginx**, configúralo para generar registros JSON (recomendado, requerido para métricas de latencia) o usa el formato combinado estándar.
+     > **Nota**: Para ver métricas de latencia, tu formato JSON necesita incluir `"request_time": "$request_time"`.
    - Si usas **Apache**, asegúrate de usar el `Combined Log Format`.
    - Si usas **IIS**:
      - Habilita **OpenSSH Server** en Windows.
@@ -151,7 +152,8 @@ Para adicionar um novo servidor ao pool de monitoramento:
 
 1. **Acesso SSH**: Garanta que a máquina rodando o WMC tenha acesso via chave pública SSH ao servidor de destino.
 2. **Formato de Log**:
-   - Se usar **Nginx**, configure-o para gerar logs JSON (recomendado) o use o formato combinado padrão.
+   - Se usar **Nginx**, configure-o para gerar logs JSON (recomendado, necessário para métricas de latência) o use o formato combinado padrão.
+     > **Nota**: Para métricas de latência, seu formato JSON deve incluir `"request_time": "$request_time"`.
    - Se usar **Apache**, garanta o `Combined Log Format`.
    - Se usar **IIS**:
      - Habilite **OpenSSH Server** no Windows.
