@@ -1,8 +1,24 @@
 from user_agents import parse
 
 class UAEnricher:
+    GOOD_BOTS = ['googlebot', 'bingbot', 'duckduckbot', 'baiduspider', 'yandexbot', 'facebookexternalhit', 'twitterbot', 'linkedinbot', 'slackbot', 'telegrambot']
+    BAD_BOTS = ['mj12bot', 'ahrefsbot', 'semrushbot', 'dotbot', 'petalbot', 'bytespider', 'mauibot', 'megaindex', 'colly', 'go-http-client', 'python-requests']
+
     def __init__(self):
         pass
+
+    def _classify_bot(self, ua_string):
+        ua_lower = ua_string.lower()
+        
+        for bot in self.BAD_BOTS:
+            if bot in ua_lower:
+                return 'Bad Bot'
+        
+        for bot in self.GOOD_BOTS:
+            if bot in ua_lower:
+                return 'Good Bot'
+                
+        return 'Unknown Bot'
 
     def enrich(self, user_agent_string):
         """
@@ -37,14 +53,24 @@ class UAEnricher:
             else:
                 device = 'Other'
 
+            # Bot Category
+            bot_category = 'User'
+            if user_agent.is_bot:
+                bot_category = self._classify_bot(user_agent_string)
+            elif 'Bad Bot' == self._classify_bot(user_agent_string): # Double check via bad bot list even if not flagged by library
+                 bot_category = 'Bad Bot'
+                 device = 'Bot'
+
             return {
                 'browser': browser or 'Unknown',
                 'os': os_info or 'Unknown',
-                'device': device
+                'device': device,
+                'bot_category': bot_category
             }
         except Exception:
             return {
                 'browser': 'Unknown',
                 'os': 'Unknown',
-                'device': 'Unknown'
+                'device': 'Unknown',
+                'bot_category': 'User'
             }

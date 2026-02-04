@@ -30,12 +30,14 @@ class LogStorage:
                 timestamp, source_host, client_ip, hostname, method, uri, 
                 status_code, response_size, user_agent, browser, os, device, is_fake_bot, referrer,
                 country_code, city, latitude, longitude, 
-                server_type, raw_log
+                server_type, raw_log,
+                request_time_ms, bot_category
             ) VALUES (
                 %(timestamp)s, %(source_host)s, %(client_ip)s, %(hostname)s, %(method)s, %(uri)s,
                 %(status_code)s, %(response_size)s, %(user_agent)s, %(browser)s, %(os)s, %(device)s, %(is_fake_bot)s, %(referrer)s,
                 %(country_code)s, %(city)s, %(latitude)s, %(longitude)s,
-                %(server_type)s, %(raw_log)s
+                %(server_type)s, %(raw_log)s,
+                %(request_time_ms)s, %(bot_category)s
             )
         """
         

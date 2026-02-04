@@ -14,6 +14,9 @@ WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfi
   - **Detección de Falsos Googlebot**: Bloqueia IPs que pretenden ser Googlebot.
   - **Fail2Ban Lite**: Bloqueo automático de IPs con actividad maliciosa.
   - **Monitoreo de Amenazas**: Visualiza picos de SQLi, XSS y errores.
+  - **Clasificación de Bots**: Visualiza "Good Bots" (Google, Bing) vs "Bad Bots" (MJ12, Petal).
+- **Rendimiento**:
+  - **⏱️ Monitoreo de Latencia**: Tiempos de respuesta promedio por minuto.
 - **Redes Avanzadas**:
   - **DNS Inverso**: Resuelve IPs a nombres de host (con caché).
   - **Mapa de Tráfico Animado**: Visualización 3D en vivo del flujo de tráfico.
@@ -99,6 +102,9 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
   - **Detecção de Falso Googlebot**: Bloqueia IPs fingindo ser o Googlebot.
   - **Fail2Ban Lite**: Banimento automático de IPs envolvidos em atividades maliciosas.
   - **Monitoramento de Ameaças**: Visualiza picos de SQLi, XSS e erros.
+  - **Classificação de Bots**: Visualiza "Good Bots" (Google, Bing) vs "Bad Bots" (MJ12, Petal).
+- **Desempenho**:
+  - **⏱️ Monitoramento de Latência**: Tempos de resposta médios por minuto.
 - **Redes Avançadas**:
   - **DNS Reverso**: Resolve IPs para nomes de host (com cache).
   - **Mapa de Tráfego Animado**: Visualização 3D ao vivo do fluxo de tráfego.

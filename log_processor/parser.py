@@ -46,6 +46,16 @@ class LogParser:
         data = json.loads(line)
         # Normalize to internal schema
         # Expecting keys compatible with common Nginx JSON config
+        # Try to extract request_time (Nginx usually logs seconds float)
+        req_time_ms = 0
+        try:
+            rt = data.get('request_time') or data.get('upstream_response_time')
+            if rt:
+                # Handle "0.001" string or float
+                req_time_ms = int(float(str(rt).split()[0].replace(',', '.')) * 1000)
+        except (ValueError, TypeError):
+            req_time_ms = 0
+
         return {
             'client_ip': data.get('remote_addr') or data.get('client_ip'),
             'timestamp': data.get('time_iso8601') or data.get('time_local'), # Needs parsing
@@ -53,6 +63,7 @@ class LogParser:
             'uri': data.get('request_uri') or data.get('uri'),
             'status_code': int(data.get('status') or 0),
             'response_size': int(data.get('body_bytes_sent') or 0),
+            'request_time_ms': req_time_ms,
             'user_agent': data.get('http_user_agent'),
             'referrer': data.get('http_referer'),
             'raw_log': line
@@ -77,6 +88,7 @@ class LogParser:
             'uri': data['uri'],
             'status_code': int(data['status']),
             'response_size': int(size),
+            'request_time_ms': 0, # CLF doesn't have time by default
             'user_agent': data.get('ua'),
             'referrer': data.get('referrer'),
             'raw_log': line
@@ -123,6 +135,14 @@ class LogParser:
             if user_agent == '-':
                 user_agent = None
 
+            # Try to get time-taken (last column usually)
+            time_taken = 0
+            if len(parts) >= 15:
+                try:
+                     time_taken = int(parts[-1]) # IIS logs milliseconds
+                except ValueError:
+                    time_taken = 0
+
             return {
                 'client_ip': client_ip,
                 'timestamp': timestamp_str, # ISO-like "YYYY-MM-DD HH:MM:SS" is usually fine to parse directly later
@@ -130,6 +150,7 @@ class LogParser:
                 'uri': uri,
                 'status_code': status,
                 'response_size': 0, # IIS default log usually puts size at the end, but variable. defaulting to 0.
+                'request_time_ms': time_taken,
                 'user_agent': user_agent,
                 'referrer': referrer,
                 'raw_log': line

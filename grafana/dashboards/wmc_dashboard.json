@@ -742,11 +742,61 @@
                     "format": "table",
                     "rawQuery": true,
                     "refId": "A",
-                    "rawSql": "SELECT user_agent, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND (user_agent ILIKE '%bot%' OR user_agent ILIKE '%crawl%' OR user_agent ILIKE '%python%' OR user_agent ILIKE '%curl%') GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+                    "rawSql": "SELECT bot_category, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND bot_category != 'User' AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
                 }
             ],
-            "title": "🤖 Bot Traffic (User-Agents)",
-            "type": "table"
+            "title": "🤖 Bot Classification",
+            "type": "piechart",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "pieType": "donut",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT bot_category, count(*) as count FROM web_access_logs WHERE $__timeFilter(timestamp) AND bot_category != 'User' AND source_host IN ($host) GROUP BY 1 ORDER BY 2 DESC"
+                }
+            ],
+            "title": "🤖 Bot Classification",
+            "transformations": []
         },
         {
             "datasource": {
@@ -887,15 +937,127 @@
             ],
             "title": "🚨 Suspicious Hosts (Clones)",
             "type": "table"
+        },
+        {
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 60
+            },
+            "id": 40,
+            "title": "⚡ Performance Metrics",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "Latency (ms)",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "opacity",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "smooth",
+                        "lineWidth": 2,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 200
+                            },
+                            {
+                                "color": "red",
+                                "value": 1000
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 24,
+                "x": 0,
+                "y": 61
+            },
+            "id": 41,
+            "options": {
+                "legend": {
+                    "calcs": [
+                        "mean",
+                        "max"
+                    ],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "refId": "A",
+                    "rawSql": "SELECT $__timeGroup(timestamp, '1m') as time, avg(request_time_ms) as avg_latency FROM web_access_logs WHERE $__timeFilter(timestamp) AND source_host IN ($host) GROUP BY 1 ORDER BY 1"
+                }
+            ],
+            "title": "⏱️ Avg Request Latency (ms)",
+            "type": "timeseries"
         }
     ],
-    "refresh": "10s",
-    "schemaVersion": 39,
+    "refresh": "5s",
+    "schemaVersion": 38,
+    "style": "dark",
     "tags": [],
     "templating": {
         "list": [
             {
                 "current": {
+                    "selected": false,
                     "text": "All",
                     "value": "$__all"
                 },
@@ -903,14 +1065,13 @@
                     "type": "postgres",
                     "uid": "PostgreSQL"
                 },
-                "definition": "SELECT DISTINCT source_host FROM web_access_logs ORDER BY 1",
+                "definition": "SELECT DISTINCT source_host FROM web_access_logs",
                 "hide": 0,
                 "includeAll": true,
-                "label": "Host",
                 "multi": true,
                 "name": "host",
                 "options": [],
-                "query": "SELECT DISTINCT source_host FROM web_access_logs ORDER BY 1",
+                "query": "SELECT DISTINCT source_host FROM web_access_logs",
                 "refresh": 1,
                 "regex": "",
                 "skipUrlSync": false,
@@ -945,8 +1106,8 @@
     },
     "timepicker": {},
     "timezone": "",
-    "title": "🌐 WMC Dashboard",
-    "uid": "wmc-main-v1",
+    "title": "WMC Dashboard",
+    "uid": "cdq7bgd002iv4c",
     "version": 1,
     "weekStart": ""
 }
