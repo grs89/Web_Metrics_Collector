@@ -6,6 +6,10 @@ on:
       - 'v*.*.*'
   workflow_dispatch: 
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   deploy:
     uses: grs89/github-template/.github/workflows/docker-publish.yml@v1
