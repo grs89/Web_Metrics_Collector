@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: log-processor
-        image: wmc-log-processor:latest # Needs to be built and pushed to registry
+        image: gersonofstone/centralizegg:1.0.0
         env:
         - name: DB_HOST
           value: "postgres"
@@ -22,7 +22,17 @@ spec:
         - name: DB_USER
           value: "wmc_user"
         - name: DB_PASSWORD
-          value: "wmc_password"
+          valueFrom:
+            secretKeyRef:
+              name: wmc-secrets
+              key: POSTGRES_PASSWORD
+        - name: GEOIP_LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wmc-secrets
+              key: GEOIP_LICENSE_KEY
+        - name: CONFIG_FILE
+          value: "/app/hosts.yml"
         volumeMounts:
         - name: config
           mountPath: /app/hosts.yml
@@ -37,3 +47,4 @@ spec:
       - name: ssh-keys
         secret:
           secretName: wmc-ssh-keys
+          defaultMode: 0400

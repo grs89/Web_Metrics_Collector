@@ -18,12 +18,42 @@ spec:
         - name: GF_SECURITY_ADMIN_USER
           value: "admin"
         - name: GF_SECURITY_ADMIN_PASSWORD
-          value: "admin"
+          valueFrom:
+            secretKeyRef:
+              name: wmc-secrets
+              key: GRAFANA_ADMIN_PASSWORD
         - name: GF_INSTALL_PLUGINS
-          value: "grafana-worldmap-panel,grafana-clock-panel"
+          value: "grafana-worldmap-panel,grafana-clock-panel,volkovlabs-echarts-panel"
         ports:
         - containerPort: 3000
-        # Provisioning volumes would be ConfigMaps here
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        - name: grafana-datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: grafana-dashboards
+          mountPath: /etc/grafana/provisioning/dashboards
+      volumes:
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: wmc-grafana-pvc
+      - name: grafana-datasources
+        configMap:
+          name: wmc-grafana-datasources
+      - name: grafana-dashboards
+        configMap:
+          name: wmc-grafana-dashboards
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wmc-grafana-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: v1
 kind: Service
@@ -35,4 +65,5 @@ spec:
   ports:
   - port: 3000
     targetPort: 3000
-  type: LoadBalancer # Or ClusterIP + Ingress
+    name: http
+

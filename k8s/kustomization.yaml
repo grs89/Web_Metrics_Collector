@@ -13,5 +13,21 @@ configMapGenerator:
   - name: wmc-config
     files:
       - hosts.yml=../hosts.yml
+  - name: wmc-grafana-datasources
+    files:
+      - ../grafana/provisioning/datasources/datasources.yml
+  - name: wmc-grafana-dashboards
+    files:
+      - ../grafana/provisioning/dashboards/dashboards.yml
 
-# Secret generator would handle SSH keys in prod
+# Example Secret Generator - in production use sealed-secrets or external-secrets
+secretGenerator:
+  - name: wmc-secrets
+    literals:
+      - POSTGRES_PASSWORD=wmc_password
+      - GRAFANA_ADMIN_PASSWORD=admin
+      - GEOIP_LICENSE_KEY=your_license_key_here
+  - name: wmc-ssh-keys
+    files:
+      - ../keys/id_rsa
+
