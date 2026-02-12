@@ -1,0 +1,11 @@
+
+.git
+.github
+.env
+.DS_Store
+wmc_postgres_data
+grafana
+database
+docs
+k8s
+keys

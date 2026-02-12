@@ -34,7 +34,9 @@ services:
     restart: always
 
   log-processor:
-    build: ./log_processor
+    build:
+      context: .
+      dockerfile: Dockerfile
     env_file:
       - .env
     container_name: wmc-log-processor
