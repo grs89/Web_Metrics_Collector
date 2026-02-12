@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: log-processor
-        image: gersonofstone/centralizegg:1.0.0
+        image: gersonofstone/web_metrics_collector:latest
         env:
         - name: DB_HOST
           value: "postgres"
