@@ -1,10 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: web-metrics-collector
 
 resources:
   - postgres.yaml
   - grafana.yaml
   - log_processor.yaml
+  - ingress.yaml
 
 configMapGenerator:
   - name: wmc-init-sql
@@ -19,6 +21,10 @@ configMapGenerator:
   - name: wmc-grafana-dashboards
     files:
       - ../grafana/provisioning/dashboards/dashboards.yml
+  - name: wmc-grafana-dashboards-json
+    files:
+      - ../grafana/dashboards/wmc_dashboard.json
+      - ../grafana/dashboards/echarts_logic.js
 
 # Example Secret Generator - in production use sealed-secrets or external-secrets
 secretGenerator:

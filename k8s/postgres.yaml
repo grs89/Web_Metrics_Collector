@@ -55,6 +55,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: wmc-postgres-pvc
 spec:
+  storageClassName: nfs-client # Replace with your actual StorageClass name (e.g., gp2, managed-premium, etc.)
   accessModes:
     - ReadWriteOnce
   resources:

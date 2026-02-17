@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS web_access_logs (
     latitude FLOAT,
     longitude FLOAT,
     server_type VARCHAR(50), -- 'nginx', 'apache'
+    request_time_ms FLOAT,
+    bot_category VARCHAR(50), -- 'GoodBot', 'BadBot', 'Suspicious', etc.
     raw_log TEXT,
     processed_at TIMESTAMPTZ DEFAULT NOW()
 );

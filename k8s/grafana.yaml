@@ -33,6 +33,8 @@ spec:
           mountPath: /etc/grafana/provisioning/datasources
         - name: grafana-dashboards
           mountPath: /etc/grafana/provisioning/dashboards
+        - name: grafana-dashboards-json
+          mountPath: /var/lib/grafana/dashboards
       volumes:
       - name: grafana-storage
         persistentVolumeClaim:
@@ -43,12 +45,16 @@ spec:
       - name: grafana-dashboards
         configMap:
           name: wmc-grafana-dashboards
+      - name: grafana-dashboards-json
+        configMap:
+          name: wmc-grafana-dashboards-json
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: wmc-grafana-pvc
 spec:
+  storageClassName: nfs-client # Replace with your actual StorageClass name
   accessModes:
     - ReadWriteOnce
   resources:

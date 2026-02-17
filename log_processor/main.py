@@ -78,7 +78,7 @@ def process_host(host_cfg, geoip, ua_enricher, dns_enricher):
                             parsed['is_fake_bot'] = is_fake
 
                             # Ensure defaults
-                            for key in ['country_code', 'city', 'latitude', 'longitude']:
+                            for key in ['country_code', 'city', 'latitude', 'longitude', 'request_time_ms', 'bot_category']:
                                 parsed.setdefault(key, None)
                             
                             # Add metadata

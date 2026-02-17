@@ -16,7 +16,7 @@ spec:
         image: gersonofstone/web_metrics_collector:latest
         env:
         - name: DB_HOST
-          value: "postgres"
+          value: "postgres.web-metrics-collector.svc.cluster.local"
         - name: DB_NAME
           value: "wmc_db"
         - name: DB_USER

@@ -29,7 +29,8 @@ class UAEnricher:
             return {
                 'browser': 'Unknown',
                 'os': 'Unknown',
-                'device': 'Unknown'
+                'device': 'Unknown',
+                'bot_category': 'User'
             }
 
         try:
