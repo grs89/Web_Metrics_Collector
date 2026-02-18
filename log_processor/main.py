@@ -11,6 +11,13 @@ from dns_enricher import DNSEnricher
 from processor import LogProcessor
 from storage import LogStorage
 from ssh_client import SSHLogReader
+from prometheus_client import start_http_server
+
+# Initialize Metrics Server early
+# This allows healthchecks to pass as soon as the process starts
+METRICS_PORT = 8080
+start_http_server(METRICS_PORT)
+logging.info(f"Prometheus metrics server started on port {METRICS_PORT}")
 
 class JsonFormatter(logging.Formatter):
     def format(self, record):
@@ -48,6 +55,7 @@ async def main():
 
     # Initialize Processor
     processor = LogProcessor(geoip, ua_enricher, dns_enricher, storage)
+    processor.start() # Start the background pusher worker
     
     hosts = config.get('hosts', [])
     # Initialize SSH Readers for each host
@@ -81,6 +89,7 @@ async def main():
             await asyncio.sleep(10) # Poll interval
     
     # Cleanup
+    await processor.stop() # Stop the background pusher worker
     for reader in readers.values():
         await reader.close()
     await storage.close()

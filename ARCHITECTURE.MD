@@ -144,6 +144,8 @@ El sistema incluye mocks para SSH y Base de Datos en `tests/test_async.py`, perm
 - **Visualización**: Grafana 12.0
 - **Containerización**: Docker (Multi-stage Build)
 - **Formatos Soportados**: Nginx (JSON/CLF), Apache (Combined), IIS (W3C), **Traefik (JSON)**, **Caddy (JSON)**, **HAProxy**.
+- **Resiliencia**: Reintentos con Exponential Backoff (SSH) y Buffering en memoria (asyncio.Queue).
+- **Observabilidad**: Exportador de métricas Prometheus (:8080/metrics) y Health Checks nativos.
 
 ---
 

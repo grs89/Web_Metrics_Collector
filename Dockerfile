@@ -41,4 +41,11 @@ ENV PYTHONUSERBASE=/home/appuser/.local
 # Switch to non-root user
 USER appuser
 
+# Expose metrics port
+EXPOSE 8080
+
+# Health check (verify event loop and metrics server)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python healthcheck.py
+
 CMD ["python", "main.py"]

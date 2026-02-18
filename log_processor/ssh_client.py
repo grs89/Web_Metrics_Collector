@@ -1,6 +1,7 @@
 import asyncssh
 import logging
 import asyncio
+from metrics import SSH_CONNECTION_ATTEMPTS_TOTAL
 
 class SSHLogReader:
     def __init__(self, host_config):
@@ -11,21 +12,30 @@ class SSHLogReader:
         self.conn = None
         self.log_offsets = {} # Map file_path -> current_offset
 
-    async def connect(self):
-        try:
-            if not self.conn:
-                self.conn = await asyncssh.connect(
-                    self.host, 
-                    port=self.port, 
-                    username=self.user, 
-                    client_keys=[self.key_path],
-                    known_hosts=None # AutoAddPolicy equivalent
-                )
-                logging.info(f"Connected to {self.host} (asyncssh)")
-            return True
-        except Exception as e:
-            logging.error(f"Failed to connect to {self.host}: {e}")
-            return False
+    async def connect(self, retries=5, base_delay=1):
+        for attempt in range(retries):
+            try:
+                if not self.conn:
+                    self.conn = await asyncssh.connect(
+                        self.host, 
+                        port=self.port, 
+                        username=self.user, 
+                        client_keys=[self.key_path],
+                        known_hosts=None
+                    )
+                    logging.info(f"Connected to {self.host} (asyncssh)")
+                    SSH_CONNECTION_ATTEMPTS_TOTAL.labels(host=self.host, result="success").inc()
+                return True
+            except Exception as e:
+                delay = base_delay * (2 ** attempt)
+                logging.warning(f"Connection attempt {attempt + 1}/{retries} failed for {self.host}: {e}. Retrying in {delay}s...")
+                SSH_CONNECTION_ATTEMPTS_TOTAL.labels(host=self.host, result="failure").inc()
+                if attempt < retries - 1:
+                    await asyncio.sleep(delay)
+                else:
+                    logging.error(f"Final connection attempt failed for {self.host}")
+                    return False
+        return False
 
     async def read_updates(self, file_path):
         """
