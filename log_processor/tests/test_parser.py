@@ -40,6 +40,31 @@ class TestLogParser:
         assert result['status_code'] == 200
         assert result['request_time_ms'] == 500
         assert result['user_agent'] == "Mozilla/5.0 TestAgent"
-    
+
+    def test_parse_traefik(self):
+        log_line = '{"ClientAddr":"1.2.3.4:5678","Duration":2000000,"RequestMethod":"GET","RequestPath":"/","ResponseStatus":200,"DownstreamContentSize":500,"StartUTC":"2023-10-27T10:00:00Z","RequestUserAgent":"TraefikAgent"}'
+        result = LogParser.parse(log_line, "traefik")
+        
+        assert result is not None
+        assert isinstance(result['timestamp'], datetime)
+        assert result['client_ip'] == "1.2.3.4"
+        assert result['method'] == "GET"
+        assert result['status_code'] == 200
+        assert result['request_time_ms'] == pytest.approx(2.0)
+        assert result['user_agent'] == "TraefikAgent"
+
+    def test_parse_caddy(self):
+        log_line = '{"ts":1698393600,"duration":0.005,"status":200,"size":1024,"request":{"remote_addr":"5.6.7.8:1234","method":"POST","uri":"/api/data","headers":{"User-Agent":["CaddyAgent"],"Referer":["https://google.com"]}}}'
+        result = LogParser.parse(log_line, "caddy")
+        
+        assert result is not None
+        assert isinstance(result['timestamp'], datetime)
+        assert result['client_ip'] == "5.6.7.8"
+        assert result['method'] == "POST"
+        assert result['status_code'] == 200
+        assert result['request_time_ms'] == pytest.approx(5.0)
+        assert result['user_agent'] == "CaddyAgent"
+        assert result['referrer'] == "https://google.com"
+
     def test_invalid_log(self):
         assert LogParser.parse("invalid junk", "nginx-json") is None
