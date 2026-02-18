@@ -37,7 +37,7 @@ class LogProcessor:
                 await self._worker_task
             except asyncio.CancelledError:
                 # Expected when canceling
-                pass
+                raise
             self._worker_task = None
 
     async def _buffer_worker(self):
@@ -100,7 +100,7 @@ class LogProcessor:
         
         try:
             # Ensure worker is running
-            await self.start()
+            self.start()
 
             # Iterate through files for this host
             for log_file in host_cfg.get('log_files', []):
