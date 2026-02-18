@@ -14,13 +14,14 @@ Crea los siguientes secrets:
 |------------|-------------|---------|
 | `DOCKERHUB_USERNAME` | Tu nombre de usuario de Docker Hub | `tuusuario` |
 | `DOCKERHUB_TOKEN` | Token de acceso de Docker Hub | `dckr_pat_xxxxx...` |
+| `DOCKERHUB_REPO` | Nombre del repositorio en Docker Hub | `web_metrics_collector` |
 
 ### 2. Crear Access Token en Docker Hub
 
 1. Ve a [Docker Hub](https://hub.docker.com/)
 2. Inicia sesión con tu cuenta
 3. Ve a **Account Settings** → **Security** → **New Access Token**
-4. Dale un nombre descriptivo (ej: `github-actions-centralizegg`)
+4. Dale un nombre descriptivo (ej: `github-actions-wmc`)
 5. Selecciona permisos: **Read, Write, Delete**
 6. Copia el token generado (solo se muestra una vez)
 7. Pégalo en el secret `DOCKERHUB_TOKEN` de GitHub
@@ -65,9 +66,9 @@ El workflow genera automáticamente los siguientes tags cuando creas una release
 
 | Tag Creado | Tags de Docker Generados | Ejemplo |
 |------------|-------------------------|---------|
-| `v1.2.3` | `v1.2.3`, `v1.2`, `v1`, `latest` | `centralizegg:v1.2.3` |
-| `v2.0.0` | `v2.0.0`, `v2.0`, `v2`, `latest` | `centralizegg:v2.0.0` |
-| `v1.5.2` | `v1.5.2`, `v1.5`, `v1`, `latest` | `centralizegg:v1.5.2` |
+| `v1.2.3` | `v1.2.3`, `v1.2`, `v1`, `latest` | `tuusuario/web_metrics_collector:v1.2.3` |
+| `v2.0.0` | `v2.0.0`, `v2.0`, `v2`, `latest` | `tuusuario/web_metrics_collector:v2.0.0` |
+| `v1.5.2` | `v1.5.2`, `v1.5`, `v1`, `latest` | `tuusuario/web_metrics_collector:v1.5.2` |
 
 > [!NOTE]
 > El tag `latest` siempre apunta a la última versión publicada.
@@ -83,23 +84,30 @@ El workflow construye imágenes multi-arquitectura:
 
 ## 📦 Usar la Imagen Publicada
 
+### Seguridad (Non-Root User)
+La imagen se ejecuta por defecto como un usuario no root (`appuser`, UID `1000`).
+Si montas volúmenes desde el host (como llaves SSH), debes asegurarte de que el usuario `1000` tenga permisos de lectura.
+
 ### Docker Compose
 ```yaml
 services:
   app:
-    image: tuusuario/centralizegg:latest
+    image: tuusuario/web_metrics_collector:latest
+    user: "1000:1000" # Opcional, ya es el default
+    volumes:
+       - ./ssh_keys:/ssh_keys:ro # Asegúrate de que UID 1000 pueda leer esto
     # ... resto de la configuración
 ```
 
 ### Docker Run
 ```bash
-docker pull tuusuario/centralizegg:latest
-docker run -d tuusuario/centralizegg:latest
+docker pull tuusuario/web_metrics_collector:latest
+docker run -d tuusuario/web_metrics_collector:latest
 ```
 
 ### Especificar Versión
 ```bash
-docker pull tuusuario/centralizegg:v1.0.0
+docker pull tuusuario/web_metrics_collector:v1.0.0
 ```
 
 ## 🔍 Verificar el Workflow
@@ -112,8 +120,9 @@ docker pull tuusuario/centralizegg:v1.0.0
 ## 🐛 Troubleshooting
 
 ### Error: "denied: requested access to the resource is denied"
-- Verifica que `DOCKERHUB_USERNAME` sea correcto
-- Verifica que `DOCKERHUB_TOKEN` sea válido y tenga permisos de escritura
+- Verifica que `DOCKERHUB_USERNAME` sea correcto en los secrets.
+- Verifica que `DOCKERHUB_REPO` sea correcto (nombre del repositorio en Hub).
+- Verifica que `DOCKERHUB_TOKEN` tenga permisos de escritura.
 
 ### Error: "buildx failed with: ERROR: failed to solve"
 - Revisa el `Dockerfile` para errores de sintaxis
@@ -133,4 +142,4 @@ docker pull tuusuario/centralizegg:v1.0.0
 
 ---
 
-© 2026 Centralizegg Contributors
+© 2026 Web Metrics Collector Contributors
