@@ -53,6 +53,8 @@ services:
       - ./log_processor:/app
       - ./hosts.yml:/config/hosts.yml
       - ./keys:/ssh_keys:ro # Mount local project keys folder
+    ports:
+      - "8080:8080"
     networks:
       - wmc-network
     restart: unless-stopped

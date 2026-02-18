@@ -1,3 +1,5 @@
+import logging
+import asyncio
 from parser import LogParser
 from verifier import BotVerifier
 from metrics import (
