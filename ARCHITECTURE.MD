@@ -150,7 +150,27 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 ---
 
-## 6. Base de Datos <a name="base-de-datos"></a>
+## 6. Funcionalidades del Frontend <a name="funcionalidades-del-frontend"></a>
+
+El "Frontend" está compuesto por dos dashboards de Grafana preconfigurados:
+
+### 📊 WMC Dashboard (Principal)
+- **Mapa 3D Real-time**: Visualiza el origen geográfico de los hits.
+- **Detección de Clones (Suspicious Hosts)**: Filtra tráfico que no coincide con tu dominio configurado.
+- **Panel de Latencia**: Monitoriza el rendimiento de tus sitios (solo para logs Nginx JSON).
+- **Control de Retención**: Gestión automática para eliminar datos antiguos sin intervención manual.
+
+### 🛡️ WMC Security Center (Dashboard V2)
+Centro de mando de seguridad con analítica premium:
+- **Mapa de Ataques**: Mapa mundial interactivo con burbujas escaladas por volumen de peticiones bloqueadas (bots maliciosos, fake Googlebots, errores 4xx).
+- **Top 10 IPs Amenaza**: Tabla con IP, país, ciudad, total de peticiones, % de errores, detección de Fake Bot y categoría.
+- **Ataques por País**: Donut chart con distribución geográfica de los ataques.
+- **Ancho de Banda Bots vs Usuarios**: Serie temporal comparando bytes consumidos por bots vs usuarios reales.
+- **KPIs de Seguridad**: Paneles de bytes a bots, bytes a usuarios reales, % de ancho de banda consumido por bots (gauge con umbrales de alerta) y total de peticiones bloqueadas.
+
+---
+
+## 7. Base de Datos <a name="base-de-datos"></a>
 
 ### Esquema Principal: `web_access_logs`
 | Campo | Tipo | Descripción |

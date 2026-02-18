@@ -33,6 +33,9 @@ WMC es un sistema centralizado de monitoreo de logs que visualiza el tráfico we
 - **Docker Health Check**: El contenedor se auto-monitorea. Si el event loop se bloquea, Docker lo detecta y puede reiniciarlo.
 
 ### 📈 Analítica y Visualización
+- **Visualización**: Dos dashboards de Grafana preconfigurados:
+  - **WMC Dashboard**: Mapa mundial, latencia, fuentes de tráfico y análisis de bots.
+  - **🛡️ WMC Security Center**: Mapa de ataques, Top 10 IPs amenaza, ancho de banda bots vs usuarios reales.
 - **Mapa de Tráfico Animado**: Visualización 3D en vivo del flujo de tráfico.
 - **Panel de Latencia**: Tiempos de respuesta promedio por minuto.
 - **Fuentes de Tráfico**: Desglose por referidos (Google, Directo, Redes Sociales).
@@ -64,8 +67,10 @@ WMC es un sistema centralizado de monitoreo de logs que visualiza el tráfico we
    ```bash
    docker compose up -d --build
    ```
-6. **Acceder a Grafana**: Abre `http://localhost:3000` (Usuario: `admin` / Contraseña: `admin`).
-7. **Ver Métricas**: Abre `http://localhost:8080/metrics` para ver el estado interno del recolector.
+6. **Acceder a Grafana**: Abre `http://localhost:3000` (Usuario: `admin` / Contraseña: `admin`). Encontrarás dos dashboards:
+   - **WMC Dashboard**: Analítica general de tráfico.
+   - **🛡️ WMC Security Center**: Centro de mando de seguridad (mapa de ataques, Top 10 amenazas, ancho de banda bots vs usuarios reales).
+7. **Ver Métricas Internas**: Abre `http://localhost:8080/metrics`.
 
 ### ⚙️ Configuración del Dashboard
 Para que la detección de **Hosts Sospechosos** funcione:
@@ -172,8 +177,10 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
    ```bash
    docker compose up -d --build
    ```
-6. **Acessar o Grafana**: Abra `http://localhost:3000` (Usuário: `admin` / Senha: `admin`).
-7. **Ver Métricas**: Abra `http://localhost:8080/metrics`.
+6. **Acessar o Grafana**: Abra `http://localhost:3000` (Usuário: `admin` / Senha: `admin`). Você encontrará dois dashboards:
+   - **WMC Dashboard**: Análise geral de tráfego.
+   - **🛡️ WMC Security Center**: Centro de comando de segurança (mapa de ataques, Top 10 ameaças, largura de banda).
+7. **Ver Métricas Internas**: Abra `http://localhost:8080/metrics`.
 
 ### ⚙️ Configuração do Dashboard
 Para que a detecção de **Hosts Suspeitos** funcione:
