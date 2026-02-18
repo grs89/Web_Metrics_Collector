@@ -1,3 +1,4 @@
+import pytest
 from datetime import datetime
 from parser import LogParser
 
@@ -65,6 +66,19 @@ class TestLogParser:
         assert result['request_time_ms'] == pytest.approx(5.0)
         assert result['user_agent'] == "CaddyAgent"
         assert result['referrer'] == "https://google.com"
+
+    def test_parse_haproxy(self):
+        log_line = 'Feb 17 12:34:56 localhost haproxy[1234]: 1.2.3.4:54321 [17/Feb/2025:12:34:56.789] frontend backend/server 0/0/5/10/15 200 1234 - - ---- 1/1/1/1/0 0/0 "GET /index.html HTTP/1.1"'
+        result = LogParser.parse(log_line, "haproxy")
+        
+        assert result is not None
+        assert isinstance(result['timestamp'], datetime)
+        assert result['client_ip'] == "1.2.3.4"
+        assert result['method'] == "GET"
+        assert result['uri'] == "/index.html"
+        assert result['status_code'] == 200
+        assert result['response_size'] == 1234
+        assert result['request_time_ms'] == 15 # t_total
 
     def test_invalid_log(self):
         assert LogParser.parse("invalid junk", "nginx-json") is None

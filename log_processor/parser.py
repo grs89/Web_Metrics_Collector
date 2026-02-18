@@ -4,10 +4,15 @@ import logging
 import urllib.parse
 from datetime import datetime
 
-# Combined Log Format Regex
-# 127.0.0.1 - - [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"
-CLF_REGEX = re.compile(
-    r'(?P<ip>[\d\.]+) - - \[(?P<time>.*?)\] "(?P<method>\w+) (?P<uri>.*?) (?P<protocol>.*?)" (?P<status>\d+) (?P<size>\d+|-)( "(?P<referrer>.*?)" "(?P<ua>.*?)")?'
+# Common Log Format Regex
+CLF_REGEX = re.compile(r'(?P<ip>\S+) \S+ \S+ \[(?P<time>.*?)\] "(?P<method>\S+) (?P<uri>\S+) \S+" (?P<status>\d+) (?P<size>\S+)( "(?P<referrer>.*?)" "(?P<ua>.*?)")?')
+
+# HAProxy HTTP Log Format Regex (Standard httplog)
+# Example: Feb 17 12:34:56 localhost haproxy[1234]: 192.168.1.1:54321 [17/Feb/2025:12:34:56.789] frontend backend/server 0/0/5/10/15 200 1234 - - ---- 1/1/1/1/0 0/0 "GET /index.html HTTP/1.1"
+HAPROXY_REGEX = re.compile(
+    r'.*? haproxy\[\d+\]: (?P<client_ip>\S+?):\d+ \[(?P<time>.*?)\] (?P<frontend>\S+) (?P<backend>\S+)/(?P<server>\S+) '
+    r'(?P<t_request>\d+)/(?P<t_queue>\d+)/(?P<t_connect>\d+)/(?P<t_response>\d+)/(?P<t_total>\d+) '
+    r'(?P<status>\d+) (?P<size>\d+) .*? "(?P<method>\S+) (?P<uri>\S+) .*?"'
 )
 
 class LogParser:
@@ -24,6 +29,9 @@ class LogParser:
             
             elif log_type == 'caddy':
                 return LogParser._parse_caddy(line)
+            
+            elif log_type == 'haproxy':
+                return LogParser._parse_haproxy(line)
 
             # Try parsing as JSON first if configured or if it looks like JSON
             elif log_type == 'nginx-json' or line.startswith('{'):
@@ -62,10 +70,11 @@ class LogParser:
 
         # Formats to try
         formats = [
-            "%d/%b/%Y:%H:%M:%S %z", # CLF: 18/Feb/2026:00:04:27 -0500
-            "%Y-%m-%d %H:%M:%S",    # IIS: 2026-02-18 13:50:19
-            "%Y-%m-%dT%H:%M:%S%z",  # ISO8601
-            "%Y-%m-%dT%H:%M:%SZ",   # ISO8601 UTC
+            "%d/%b/%Y:%H:%M:%S %z",       # CLF: 18/Feb/2026:00:04:27 -0500
+            "%d/%b/%Y:%H:%M:%S.%f",    # HAProxy: 17/Feb/2025:12:34:56.789
+            "%Y-%m-%d %H:%M:%S",          # IIS: 2026-02-18 13:50:19
+            "%Y-%m-%dT%H:%M:%S%z",        # ISO8601
+            "%Y-%m-%dT%H:%M:%SZ",         # ISO8601 UTC
         ]
         
         # Try ISO format first (fastest and handles many variants)
@@ -155,6 +164,26 @@ class LogParser:
             'request_time_ms': req_time_ms,
             'user_agent': headers.get('User-Agent', [None])[0] if isinstance(headers.get('User-Agent'), list) else headers.get('User-Agent'),
             'referrer': headers.get('Referer', [None])[0] if isinstance(headers.get('Referer'), list) else headers.get('Referer'),
+            'raw_log': line
+        }
+
+    @staticmethod
+    def _parse_haproxy(line):
+        match = HAPROXY_REGEX.match(line)
+        if not match:
+            return None
+        
+        data = match.groupdict()
+        return {
+            'client_ip': data['client_ip'],
+            'timestamp': LogParser._parse_datetime(data['time']),
+            'method': data['method'],
+            'uri': data['uri'],
+            'status_code': int(data['status']),
+            'response_size': int(data['size']),
+            'request_time_ms': int(data['t_total']),
+            'user_agent': None, # Default format doesn't have it
+            'referrer': None,
             'raw_log': line
         }
 

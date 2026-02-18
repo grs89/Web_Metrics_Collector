@@ -143,7 +143,7 @@ El sistema incluye mocks para SSH y Base de Datos en `tests/test_async.py`, perm
 - **Geolocalización**: MaxMind GeoLite2
 - **Visualización**: Grafana 12.0
 - **Containerización**: Docker (Multi-stage Build)
-- **Formatos Soportados**: Nginx (JSON/CLF), Apache (Combined), IIS (W3C), **Traefik (JSON)**, **Caddy (JSON)**.
+- **Formatos Soportados**: Nginx (JSON/CLF), Apache (Combined), IIS (W3C), **Traefik (JSON)**, **Caddy (JSON)**, **HAProxy**.
 
 ---
 
