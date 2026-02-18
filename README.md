@@ -4,6 +4,11 @@
 
 WMC es un sistema centralizado de monitoreo de registros que visualiza el tráfico web geográficamente y por volumen. Consulta servidores remotos Nginx/Apache vía SSH, analiza los registros, los enriquece con datos GeoIP y los almacena en PostgreSQL para su visualización en Grafana.
 
+[![Docker Build (GitHub)](https://github.com/grs89/Web_Metrics_Collector/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/grs89/Web_Metrics_Collector/actions/workflows/docker-publish.yml)
+[![Docker Hub](https://img.shields.io/docker/v/gersonofstone/web_metrics_collector?label=Docker%20Hub&logo=docker)](https://hub.docker.com/r/gersonofstone/web_metrics_collector)
+[![Docker Pulls](https://img.shields.io/docker/pulls/gersonofstone/web_metrics_collector?logo=docker)](https://hub.docker.com/r/gersonofstone/web_metrics_collector)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 ![Dashboard Screenshot](docs/images/dashboard_screenshot.png)
 
 ## ✨ Características
