@@ -14,7 +14,7 @@ def load_config(path=None):
 
 def get_db_params():
     return {
-        "dbname": os.getenv("DB_NAME", "wmc_db"),
+        "database": os.getenv("DB_NAME", "wmc_db"),
         "user": os.getenv("DB_USER", "wmc_user"),
         "password": os.getenv("DB_PASSWORD", "wmc_password"),
         "host": os.getenv("DB_HOST", "localhost"),

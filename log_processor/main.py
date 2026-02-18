@@ -113,11 +113,19 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
     
     # Start cleanup task
-    loop.create_task(run_cleanup_task(365))
+    cleanup_task = loop.create_task(run_cleanup_task(365))
     
     try:
         loop.run_until_complete(main())
     except KeyboardInterrupt:
         pass
     finally:
+        # Cancel background tasks
+        cleanup_task.cancel()
+        
+        # Give them a moment to finish/cancel
+        pending = asyncio.all_tasks(loop)
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            
         loop.close()
