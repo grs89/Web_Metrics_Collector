@@ -1,0 +1,1000 @@
+{
+    "__inputs": [],
+    "__requires": [],
+    "annotations": {
+        "list": []
+    },
+    "description": "Centro de Mando de Seguridad: Mapa de ataques, Top 10 amenazas y análisis de ancho de banda por bots vs usuarios reales.",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "id": null,
+    "links": [],
+    "panels": [
+        {
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "id": 100,
+            "title": "🗺️ Mapa de Ataques",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "description": "Mapa de calor mundial mostrando el origen geográfico de las peticiones bloqueadas (bots maliciosos y fake Googlebots).",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 10
+                            },
+                            {
+                                "color": "orange",
+                                "value": 50
+                            },
+                            {
+                                "color": "red",
+                                "value": 200
+                            }
+                        ]
+                    },
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 12,
+                "w": 24,
+                "x": 0,
+                "y": 1
+            },
+            "id": 1,
+            "options": {
+                "basemap": {
+                    "config": {},
+                    "name": "Basemap",
+                    "type": "default"
+                },
+                "controls": {
+                    "mouseWheelZoom": true,
+                    "showAttribution": true,
+                    "showDebug": false,
+                    "showMeasure": false,
+                    "showScale": false,
+                    "showZoom": true
+                },
+                "layers": [
+                    {
+                        "config": {
+                            "showLegend": true,
+                            "style": {
+                                "color": {
+                                    "field": "count",
+                                    "fixed": "dark-red"
+                                },
+                                "opacity": 0.6,
+                                "rotation": {
+                                    "fixed": 0,
+                                    "max": 360,
+                                    "min": -360,
+                                    "mode": "mod"
+                                },
+                                "size": {
+                                    "field": "count",
+                                    "fixed": 5,
+                                    "max": 30,
+                                    "min": 3,
+                                    "mode": "field"
+                                },
+                                "symbol": {
+                                    "fixed": "img/icons/marker/circle.svg",
+                                    "mode": "fixed"
+                                },
+                                "symbolAlign": {
+                                    "h": "center",
+                                    "v": "center"
+                                },
+                                "textConfig": {
+                                    "fontSize": 12,
+                                    "offsetX": 0,
+                                    "offsetY": 0,
+                                    "textAlign": "center",
+                                    "textBaseline": "middle"
+                                }
+                            }
+                        },
+                        "location": {
+                            "latitude": "latitude",
+                            "longitude": "longitude",
+                            "mode": "coords"
+                        },
+                        "name": "Blocked Requests",
+                        "tooltip": true,
+                        "type": "markers"
+                    }
+                ],
+                "tooltip": {
+                    "mode": "details"
+                },
+                "view": {
+                    "allLayers": true,
+                    "id": "zero",
+                    "lat": 20,
+                    "lon": 0,
+                    "zoom": 2
+                }
+            },
+            "pluginVersion": "11.0.0",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n  latitude,\n  longitude,\n  country_code,\n  city,\n  COUNT(*) as count\nFROM web_access_logs\nWHERE\n  $__timeFilter(timestamp)\n  AND latitude IS NOT NULL\n  AND longitude IS NOT NULL\n  AND (\n    is_fake_bot = true\n    OR bot_category IN ('BadBot', 'Malicious')\n    OR status_code IN (400, 401, 403, 404, 429)\n  )\nGROUP BY latitude, longitude, country_code, city\nORDER BY count DESC\nLIMIT 500;",
+                    "refId": "A"
+                }
+            ],
+            "title": "🌍 Mapa de Ataques y Peticiones Bloqueadas",
+            "type": "geomap"
+        },
+        {
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 13
+            },
+            "id": 101,
+            "title": "🎯 Top 10 Amenazas",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "description": "Las 10 IPs más persistentes con actividad maliciosa en el período seleccionado.",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "align": "auto",
+                        "cellOptions": {
+                            "type": "auto"
+                        },
+                        "inspect": false
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 50
+                            },
+                            {
+                                "color": "orange",
+                                "value": 200
+                            },
+                            {
+                                "color": "red",
+                                "value": 1000
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "total_requests"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "Total Peticiones"
+                            },
+                            {
+                                "id": "custom.cellOptions",
+                                "value": {
+                                    "mode": "gradient",
+                                    "type": "color-background"
+                                }
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 160
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "client_ip"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "IP"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 140
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "country_code"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "País"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 70
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "city"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "Ciudad"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 120
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "error_rate_pct"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "% Errores"
+                            },
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 100
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "is_fake_bot"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "Fake Bot"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 90
+                            },
+                            {
+                                "id": "mappings",
+                                "value": [
+                                    {
+                                        "options": {
+                                            "true": {
+                                                "color": "red",
+                                                "index": 0,
+                                                "text": "⚠️ SÍ"
+                                            },
+                                            "false": {
+                                                "color": "green",
+                                                "index": 1,
+                                                "text": "No"
+                                            }
+                                        },
+                                        "type": "value"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "bot_category"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "Categoría Bot"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 120
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 14,
+                "x": 0,
+                "y": 14
+            },
+            "id": 2,
+            "options": {
+                "cellHeight": "sm",
+                "footer": {
+                    "countRows": false,
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true,
+                "sortBy": [
+                    {
+                        "desc": true,
+                        "displayName": "Total Peticiones"
+                    }
+                ]
+            },
+            "pluginVersion": "11.0.0",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n  client_ip,\n  country_code,\n  city,\n  COUNT(*) AS total_requests,\n  ROUND(\n    100.0 * SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) / COUNT(*),\n    1\n  ) AS error_rate_pct,\n  BOOL_OR(is_fake_bot) AS is_fake_bot,\n  MODE() WITHIN GROUP (ORDER BY bot_category) AS bot_category\nFROM web_access_logs\nWHERE\n  $__timeFilter(timestamp)\n  AND (\n    is_fake_bot = true\n    OR bot_category IN ('BadBot', 'Malicious')\n    OR status_code IN (400, 401, 403, 404, 429)\n  )\nGROUP BY client_ip, country_code, city\nORDER BY total_requests DESC\nLIMIT 10;",
+                    "refId": "A"
+                }
+            ],
+            "title": "🎯 Top 10 IPs Amenaza",
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "description": "Distribución de peticiones bloqueadas por país de origen.",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 10,
+                "x": 14,
+                "y": 14
+            },
+            "id": 3,
+            "options": {
+                "displayLabels": [
+                    "percent"
+                ],
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true,
+                    "values": [
+                        "value",
+                        "percent"
+                    ]
+                },
+                "pieType": "donut",
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n  COALESCE(country_code, 'Unknown') AS country_code,\n  COUNT(*) AS blocked_requests\nFROM web_access_logs\nWHERE\n  $__timeFilter(timestamp)\n  AND (\n    is_fake_bot = true\n    OR bot_category IN ('BadBot', 'Malicious')\n    OR status_code IN (400, 401, 403, 404, 429)\n  )\nGROUP BY country_code\nORDER BY blocked_requests DESC\nLIMIT 15;",
+                    "refId": "A"
+                }
+            ],
+            "title": "🌐 Ataques por País",
+            "type": "piechart"
+        },
+        {
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 24
+            },
+            "id": 102,
+            "title": "💾 Ancho de Banda: Bots vs Usuarios Reales",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "description": "Comparativa del volumen de tráfico (bytes) consumido por bots vs usuarios reales a lo largo del tiempo.",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 20,
+                        "gradientMode": "opacity",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "smooth",
+                        "lineWidth": 2,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "never",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "unit": "bytes"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Bots"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "fixedColor": "red",
+                                    "mode": "fixed"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Usuarios Reales"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "fixedColor": "green",
+                                    "mode": "fixed"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 16,
+                "x": 0,
+                "y": 25
+            },
+            "id": 4,
+            "options": {
+                "legend": {
+                    "calcs": [
+                        "sum",
+                        "mean",
+                        "max"
+                    ],
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n  $__timeGroupAlias(timestamp, $__interval),\n  SUM(CASE WHEN bot_category IS NOT NULL AND bot_category != 'Human' THEN response_size ELSE 0 END) AS \"Bots\",\n  SUM(CASE WHEN bot_category IS NULL OR bot_category = 'Human' THEN response_size ELSE 0 END) AS \"Usuarios Reales\"\nFROM web_access_logs\nWHERE $__timeFilter(timestamp)\nGROUP BY 1\nORDER BY 1;",
+                    "refId": "A"
+                }
+            ],
+            "title": "📊 Ancho de Banda: Bots vs Usuarios Reales",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "description": "Resumen del total de bytes consumidos por bots vs usuarios reales en el período.",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "unit": "bytes"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Bots"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "fixedColor": "red",
+                                    "mode": "fixed"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Usuarios Reales"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "fixedColor": "green",
+                                    "mode": "fixed"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 16,
+                "y": 25
+            },
+            "id": 5,
+            "options": {
+                "displayLabels": [
+                    "name",
+                    "percent"
+                ],
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true,
+                    "values": [
+                        "value",
+                        "percent"
+                    ]
+                },
+                "pieType": "pie",
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n  'Bots' AS category,\n  SUM(response_size) AS bytes\nFROM web_access_logs\nWHERE $__timeFilter(timestamp)\n  AND bot_category IS NOT NULL AND bot_category != 'Human'\nUNION ALL\nSELECT\n  'Usuarios Reales' AS category,\n  SUM(response_size) AS bytes\nFROM web_access_logs\nWHERE $__timeFilter(timestamp)\n  AND (bot_category IS NULL OR bot_category = 'Human');",
+                    "refId": "A"
+                }
+            ],
+            "title": "🥧 Distribución Total de Ancho de Banda",
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "description": "Total de bytes servidos a bots en el período seleccionado.",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "fixedColor": "red",
+                        "mode": "fixed"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "bytes"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 0,
+                "y": 35
+            },
+            "id": 6,
+            "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "center",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "sum"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT SUM(response_size) AS bytes\nFROM web_access_logs\nWHERE $__timeFilter(timestamp)\n  AND bot_category IS NOT NULL AND bot_category != 'Human';",
+                    "refId": "A"
+                }
+            ],
+            "title": "🤖 Bytes Servidos a Bots",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "description": "Total de bytes servidos a usuarios reales en el período seleccionado.",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "fixedColor": "green",
+                        "mode": "fixed"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "bytes"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 6,
+                "y": 35
+            },
+            "id": 7,
+            "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "center",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "sum"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT SUM(response_size) AS bytes\nFROM web_access_logs\nWHERE $__timeFilter(timestamp)\n  AND (bot_category IS NULL OR bot_category = 'Human');",
+                    "refId": "A"
+                }
+            ],
+            "title": "👤 Bytes Servidos a Usuarios Reales",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "description": "Porcentaje del ancho de banda total consumido por bots.",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 30
+                            },
+                            {
+                                "color": "orange",
+                                "value": 60
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 12,
+                "y": 35
+            },
+            "id": 8,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n  ROUND(\n    100.0 * SUM(CASE WHEN bot_category IS NOT NULL AND bot_category != 'Human' THEN response_size ELSE 0 END)\n    / NULLIF(SUM(response_size), 0),\n    1\n  ) AS bot_bandwidth_pct\nFROM web_access_logs\nWHERE $__timeFilter(timestamp);",
+                    "refId": "A"
+                }
+            ],
+            "title": "⚠️ % Ancho de Banda Consumido por Bots",
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PostgreSQL"
+            },
+            "description": "Número total de peticiones bloqueadas en el período.",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "fixedColor": "orange",
+                        "mode": "fixed"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "orange",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 18,
+                "y": 35
+            },
+            "id": 9,
+            "options": {
+                "colorMode": "background",
+                "graphMode": "area",
+                "justifyMode": "center",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "sum"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PostgreSQL"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT COUNT(*) AS blocked\nFROM web_access_logs\nWHERE $__timeFilter(timestamp)\n  AND (\n    is_fake_bot = true\n    OR bot_category IN ('BadBot', 'Malicious')\n    OR status_code IN (400, 401, 403, 404, 429)\n  );",
+                    "refId": "A"
+                }
+            ],
+            "title": "🚫 Total Peticiones Bloqueadas",
+            "type": "stat"
+        }
+    ],
+    "refresh": "1m",
+    "schemaVersion": 39,
+    "tags": [
+        "security",
+        "wmc",
+        "threats",
+        "bandwidth"
+    ],
+    "templating": {
+        "list": [
+            {
+                "current": {
+                    "selected": false,
+                    "text": "All",
+                    "value": "$__all"
+                },
+                "datasource": {
+                    "type": "postgres",
+                    "uid": "PostgreSQL"
+                },
+                "definition": "SELECT DISTINCT source_host FROM web_access_logs ORDER BY source_host",
+                "hide": 0,
+                "includeAll": true,
+                "multi": true,
+                "name": "host",
+                "options": [],
+                "query": "SELECT DISTINCT source_host FROM web_access_logs ORDER BY source_host",
+                "refresh": 2,
+                "sort": 1,
+                "label": "Servidor",
+                "type": "query"
+            }
+        ]
+    },
+    "time": {
+        "from": "now-24h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "🛡️ WMC Security Center",
+    "uid": "wmc-security-v2",
+    "version": 1
+}
