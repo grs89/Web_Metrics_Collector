@@ -1,29 +1,54 @@
-import psycopg2
-from psycopg2.extras import execute_batch
+import asyncpg
 import logging
-import time
+import json
 
 class LogStorage:
     def __init__(self, db_params):
         self.db_params = db_params
-        self.conn = None
+        self.pool = None
 
-    def connect(self):
+    async def connect(self):
         try:
-            self.conn = psycopg2.connect(**self.db_params)
-            logging.info("Connected to PostgreSQL")
+            if not self.pool:
+                # asyncpg uses slightly different param names or a DSN
+                # Convert psycopg2 params to asyncpg compatible
+                self.pool = await asyncpg.create_pool(
+                    user=self.db_params.get('user'),
+                    password=self.db_params.get('password'),
+                    database=self.db_params.get('database'),
+                    host=self.db_params.get('host'),
+                    port=self.db_params.get('port', 5432),
+                    min_size=5,
+                    max_size=20
+                )
+                logging.info("Connected to PostgreSQL (asyncpg pool initialized)")
             return True
         except Exception as e:
             logging.error(f"Failed to connect to DB: {e}")
             return False
 
-    def save_logs(self, logs):
+    async def save_logs(self, logs):
         if not logs:
             return
 
-        if not self.conn or self.conn.closed:
-            if not self.connect():
-                return
+        if not self.pool and not await self.connect():
+            return
+
+        # Prepare records for asyncpg executemany
+        # asyncpg is much faster with executemany and positional arguments
+        records = [
+            (
+                log.get('timestamp'), log.get('source_host'), log.get('client_ip'), 
+                log.get('hostname'), log.get('method'), log.get('uri'), 
+                log.get('status_code'), log.get('response_size'), log.get('user_agent'), 
+                log.get('browser'), log.get('os'), log.get('device'), 
+                log.get('is_fake_bot'), log.get('referrer'),
+                log.get('country_code'), log.get('city'), 
+                log.get('latitude'), log.get('longitude'), 
+                log.get('server_type'), log.get('raw_log'),
+                log.get('request_time_ms'), log.get('bot_category')
+            ) for log in logs
+        ]
 
         sql = """
             INSERT INTO web_access_logs (
@@ -33,58 +58,49 @@ class LogStorage:
                 server_type, raw_log,
                 request_time_ms, bot_category
             ) VALUES (
-                %(timestamp)s, %(source_host)s, %(client_ip)s, %(hostname)s, %(method)s, %(uri)s,
-                %(status_code)s, %(response_size)s, %(user_agent)s, %(browser)s, %(os)s, %(device)s, %(is_fake_bot)s, %(referrer)s,
-                %(country_code)s, %(city)s, %(latitude)s, %(longitude)s,
-                %(server_type)s, %(raw_log)s,
-                %(request_time_ms)s, %(bot_category)s
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
             )
         """
         
         try:
-            with self.conn.cursor() as cur:
-                execute_batch(cur, sql, logs)
-                self.conn.commit()
+            async with self.pool.acquire() as conn:
+                await conn.executemany(sql, records)
                 logging.info(f"Saved {len(logs)} logs")
         except Exception as e:
             logging.error(f"Failed to save batch: {e}")
-            self.conn.rollback()
 
-    def block_ip(self, ip_address, reason):
-        if not self.conn or self.conn.closed:
-            if not self.connect():
-                return
+    async def block_ip(self, ip_address, reason):
+        if not self.pool and not await self.connect():
+            return
 
         sql = """
             INSERT INTO blocked_ips (ip_address, reason)
-            VALUES (%s, %s)
+            VALUES ($1, $2)
             ON CONFLICT (ip_address) DO NOTHING
         """
         try:
-            with self.conn.cursor() as cur:
-                cur.execute(sql, (ip_address, reason))
-                self.conn.commit()
+            async with self.pool.acquire() as conn:
+                await conn.execute(sql, ip_address, reason)
                 logging.info(f"BLOCKED IP: {ip_address} Reason: {reason}")
         except Exception as e:
             logging.error(f"Failed to block IP {ip_address}: {e}")
-            self.conn.rollback()
 
-    def cleanup_old_logs(self, retention_days=365):
-        if not self.conn or self.conn.closed:
-            if not self.connect():
-                return
+    async def cleanup_old_logs(self, retention_days=365):
+        if not self.pool and not await self.connect():
+            return
 
-        sql = "DELETE FROM web_access_logs WHERE timestamp < NOW() - INTERVAL '%s days'"
+        # Use interval string safely with asyncpg
+        sql = f"DELETE FROM web_access_logs WHERE timestamp < NOW() - INTERVAL '{retention_days} days'"
         
         try:
-            with self.conn.cursor() as cur:
-                cur.execute(sql, (retention_days,))
-                deleted_count = cur.rowcount
-                self.conn.commit()
-                if deleted_count > 0:
-                    logging.info(f"Data Retention: Cleaned up {deleted_count} logs older than {retention_days} days.")
-                else:
-                    logging.info(f"Data Retention: No logs older than {retention_days} days found.")
+            async with self.pool.acquire() as conn:
+                status = await conn.execute(sql)
+                # status is something like "DELETE 10"
+                logging.info(f"Data Retention: {status}")
         except Exception as e:
             logging.error(f"Failed to cleanup old logs: {e}")
-            self.conn.rollback()
+
+    async def close(self):
+        if self.pool:
+            await self.pool.close()
+            self.pool = None

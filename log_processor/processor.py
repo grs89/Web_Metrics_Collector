@@ -1,99 +1,93 @@
 import logging
-from ssh_client import SSHLogReader
 from parser import LogParser
-from storage import LogStorage
-from config import get_db_params
 from verifier import BotVerifier
 
 class LogProcessor:
-    def __init__(self, geoip, ua_enricher, dns_enricher):
+    def __init__(self, geoip, ua_enricher, dns_enricher, storage):
         self.geoip = geoip
         self.ua_enricher = ua_enricher
         self.dns_enricher = dns_enricher
+        self.storage = storage # Storage is now shared/pool-based
         self.bot_verifier = BotVerifier()
 
-    def process_host(self, host_cfg):
+    async def process_host(self, host_cfg, reader):
         """
         Process all log files for a single host.
         """
         host_name = host_cfg['name']
         
-        # Create a dedicated DB connection for this thread
-        db_params = get_db_params()
-        storage = LogStorage(db_params)
-        if not storage.connect():
-            logging.error(f"[{host_name}] Could not connect to DB. Skipping this cycle.")
-            return
-
         try:
-            reader = SSHLogReader(host_cfg)
-            
             # Iterate through files for this host
             for log_file in host_cfg.get('log_files', []):
-                self._process_file(reader, host_cfg, log_file, storage)
+                await self._process_file(reader, host_cfg, log_file)
 
-        finally:
-            # Always close the thread-local DB connection
-            if storage.conn:
-                storage.conn.close()
+        except Exception as e:
+            logging.error(f"[{host_name}] Error in process_host: {e}")
 
-    def _process_file(self, reader, host_cfg, log_file, storage):
+    async def _process_file(self, reader, host_cfg, log_file):
         host_name = host_cfg['name']
         file_path = log_file['path']
         log_type = log_file['type']
         
         try:
-            # Synchronous read within this thread
-            raw_data = reader.read_updates(file_path)
-            
+            raw_data = await reader.read_updates(file_path)
             if raw_data:
-                lines = raw_data.split('\n')
-                parsed_logs = []
-                for line in lines:
-                    if not line.strip():
-                        continue
-                        
-                    parsed = LogParser.parse(line, log_type)
-                    if parsed:
-                        self._enrich_log(parsed)
-                        
-                        # Fake Googlebot Verification
-                        hostname = parsed.get('hostname')
-                        user_agent = parsed.get('user_agent', '')
-                        
-                        if self.bot_verifier.is_fake_googlebot(user_agent, hostname):
-                            logging.warning(f"FAKE BOT DETECTED: IP={parsed.get('client_ip')} Hostname={hostname}")
-                            # Trigger Block
-                            storage.block_ip(parsed.get('client_ip'), 'Fake Googlebot')
-                            parsed['is_fake_bot'] = True
-                        else:
-                            parsed['is_fake_bot'] = False
-
-                        # Ensure defaults
-                        for key in ['country_code', 'city', 'latitude', 'longitude', 'request_time_ms', 'bot_category']:
-                            parsed.setdefault(key, None)
-                        
-                        # Add metadata
-                        parsed['source_host'] = host_name
-                        parsed['server_type'] = 'nginx' if 'nginx' in log_type else 'apache'
-                        
-                        parsed_logs.append(parsed)
-                
-                if parsed_logs:
-                    storage.save_logs(parsed_logs)
-                    
+                await self._handle_raw_data(raw_data, host_name, log_type)
         except Exception as e:
             logging.error(f"[{host_name}] Error processing {file_path}: {e}")
 
-    def _enrich_log(self, parsed):
-        # Enrich (GeoIP is usually thread-safe for reading)
-        geo_data = self.geoip.enrich(parsed.get('client_ip'))
+    async def _handle_raw_data(self, raw_data, host_name, log_type):
+        lines = raw_data.split('\n')
+        parsed_logs = []
+        for line in lines:
+            if not line.strip():
+                continue
+                
+            parsed = await self._parse_and_enrich_line(line, log_type, host_name)
+            if parsed:
+                parsed_logs.append(parsed)
+        
+        if parsed_logs:
+            await self.storage.save_logs(parsed_logs)
+
+    async def _parse_and_enrich_line(self, line, log_type, host_name):
+        parsed = LogParser.parse(line, log_type)
+        if not parsed:
+            return None
+
+        await self._enrich_log(parsed)
+        
+        # Fake Googlebot Verification
+        hostname = parsed.get('hostname')
+        user_agent = parsed.get('user_agent', '')
+        
+        if self.bot_verifier.is_fake_googlebot(user_agent, hostname):
+            logging.warning(f"FAKE BOT DETECTED: IP={parsed.get('client_ip')} Hostname={hostname}")
+            await self.storage.block_ip(parsed.get('client_ip'), 'Fake Googlebot')
+            parsed['is_fake_bot'] = True
+        else:
+            parsed['is_fake_bot'] = False
+
+        # Ensure defaults and metadata
+        for key in ['country_code', 'city', 'latitude', 'longitude', 'request_time_ms', 'bot_category']:
+            parsed.setdefault(key, None)
+        
+        parsed['source_host'] = host_name
+        parsed['server_type'] = 'nginx' if 'nginx' in log_type else 'apache'
+        
+        return parsed
+
+    async def _enrich_log(self, parsed):
+        # Async Enrichers
+        geo_data = await self.geoip.enrich(parsed.get('client_ip'))
         parsed.update(geo_data)
 
-        # Enrich User Agent
+        # UA enricher is still CPU-bound sync (regex/logic) 
+        # but fast enough to not block significantly, 
+        # though we could wrap it in to_thread if needed.
         ua_data = self.ua_enricher.enrich(parsed.get('user_agent'))
         parsed.update(ua_data)
 
-        # Enrich DNS (Reverse Lookup)
-        hostname = self.dns_enricher.enrich(parsed.get('client_ip'))
+        # Async DNS
+        hostname = await self.dns_enricher.enrich(parsed.get('client_ip'))
         parsed['hostname'] = hostname

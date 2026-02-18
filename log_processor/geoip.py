@@ -56,12 +56,14 @@ class GeoIPEnricher:
         except Exception as e:
             logging.error(f"Error downloading GeoIP DB: {e}")
 
-    def enrich(self, ip_address):
+    async def enrich(self, ip_address):
         if not self.reader or not ip_address:
             return {}
 
         try:
-            response = self.reader.city(ip_address)
+            # MaxMind's reader is blocking, so we run it in a thread to keep the event loop alive
+            import asyncio
+            response = await asyncio.to_thread(self.reader.city, ip_address)
             return {
                 'country_code': response.country.iso_code,
                 'city': response.city.name,
