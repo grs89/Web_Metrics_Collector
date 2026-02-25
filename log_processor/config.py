@@ -20,3 +20,12 @@ def get_db_params():
         "host": os.getenv("DB_HOST", "localhost"),
         "port": os.getenv("DB_PORT", "5432"),
     }
+
+def get_ch_params():
+    return {
+        "database": os.getenv("CH_DATABASE", "wmc_db"),
+        "user": os.getenv("CH_USER", "wmc_user"),
+        "password": os.getenv("CH_PASSWORD", "wmc_password"),
+        "host": os.getenv("CH_HOST", "localhost"),
+        "port": os.getenv("CH_PORT", "8123"),
+    }

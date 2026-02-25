@@ -34,3 +34,28 @@ INGESTION_LATENCY_SECONDS = Histogram(
     "wmc_ingestion_latency_seconds",
     "Time taken to process and enrich a log line"
 )
+
+# Host System Metrics
+HOST_CPU_USAGE = Gauge(
+    "wmc_host_cpu_usage_percent",
+    "CPU usage percentage on the monitored host",
+    ["host"]
+)
+
+HOST_MEMORY_USAGE = Gauge(
+    "wmc_host_memory_usage_percent",
+    "Memory usage percentage on the monitored host",
+    ["host"]
+)
+
+HOST_DISK_USAGE = Gauge(
+    "wmc_host_disk_usage_percent",
+    "Disk usage percentage on the monitored host",
+    ["host", "mountpoint"]
+)
+
+HOST_LOAD_AVG = Gauge(
+    "wmc_host_load_avg",
+    "System load average (1 min) on the monitored host",
+    ["host"]
+)

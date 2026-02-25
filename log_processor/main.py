@@ -4,13 +4,15 @@ import logging
 import signal
 import sys
 import json
-from config import load_config, get_db_params
+from config import load_config, get_db_params, get_ch_params
 from geoip import GeoIPEnricher
 from ua_enricher import UAEnricher
 from dns_enricher import DNSEnricher
 from processor import LogProcessor
-from storage import LogStorage
+from storage import PostgresStorage, ClickHouseStorage, MultiStorage
 from ssh_client import SSHLogReader
+from system_metrics import SystemMetricsCollector
+from ssl_monitor import SSLMonitor
 from prometheus_client import start_http_server
 
 # Initialize Metrics Server early
@@ -42,15 +44,20 @@ logger.handlers = [handler]
 async def main():
     config = load_config()
     db_params = get_db_params()
+    ch_params = get_ch_params()
     
     # Initialize shared components
     geoip = GeoIPEnricher()
     ua_enricher = UAEnricher()
     dns_enricher = DNSEnricher()
-    storage = LogStorage(db_params)
+    
+    # Initialize Storage Backends
+    pg_storage = PostgresStorage(db_params)
+    ch_storage = ClickHouseStorage(ch_params)
+    storage = MultiStorage(pg_storage, ch_storage)
     
     if not await storage.connect():
-        logging.error("Critical: Could not connect to database. Exiting.")
+        logging.error("Critical: Could not connect to primary database. Exiting.")
         return
 
     # Initialize Processor
@@ -72,21 +79,28 @@ async def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    # Start background tasks
+    metrics_task = asyncio.create_task(run_system_metrics_task(hosts, readers))
+    ssl_task = asyncio.create_task(run_ssl_monitor_task(hosts))
+    
     while running:
         tasks = []
         for host_cfg in hosts:
             if not running: break
             h_name = host_cfg['name']
             reader = readers[h_name]
-            # Create a task for each host processing cycle
             tasks.append(processor.process_host(host_cfg, reader))
         
         if tasks:
-            # Run all host processing cycles concurrently
             await asyncio.gather(*tasks, return_exceptions=True)
 
         if running:
-            await asyncio.sleep(10) # Poll interval
+            await asyncio.sleep(10)
+    
+    # Cleanup tasks
+    metrics_task.cancel()
+    ssl_task.cancel()
+    await asyncio.gather(metrics_task, ssl_task, return_exceptions=True)
     
     # Cleanup
     await processor.stop() # Stop the background pusher worker
@@ -95,25 +109,65 @@ async def main():
     await storage.close()
     geoip.close()
 
+async def run_ssl_monitor_task(hosts):
+    """
+    Periodically checks SSL certificates (every 12 hours).
+    """
+    logging.info("Starting SSL Monitor Task (Interval: 12h)")
+    monitor = SSLMonitor(hosts)
+    while True:
+        try:
+            await monitor.check_all()
+            await asyncio.sleep(12 * 60 * 60)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logging.error(f"Error in SSL task: {e}")
+            await asyncio.sleep(60 * 60)
+
+async def run_system_metrics_task(hosts, readers):
+    """
+    Periodically collects system metrics from all hosts.
+    """
+    logging.info("Starting System Metrics Collector Task (Interval: 60s)")
+    collectors = {h['name']: SystemMetricsCollector(h, readers[h['name']]) for h in hosts}
+    
+    while True:
+        try:
+            tasks = [c.collect() for c in collectors.values()]
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logging.error(f"Error in metrics task: {e}")
+            await asyncio.sleep(10)
+
 async def run_cleanup_task(retention_days=365):
     """
     Runs periodically to clean up old logs.
     """
     logging.info(f"Starting Data Retention Scheduler (Retention: {retention_days} days).")
     db_params = get_db_params()
-    storage = LogStorage(db_params)
+    ch_params = get_ch_params()
+    pg_storage = PostgresStorage(db_params)
+    ch_storage = ClickHouseStorage(ch_params)
+    storage = MultiStorage(pg_storage, ch_storage)
     
     while True:
         try:
             if await storage.connect():
                 await storage.cleanup_old_logs(retention_days)
             
-            # Sleep for 24 hours
             await asyncio.sleep(24 * 60 * 60)
             
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             logging.error(f"Error in cleanup task: {e}")
-            await asyncio.sleep(60 * 60) # Retry in 1 hour if failed
+            await asyncio.sleep(60 * 60)
         finally:
             await storage.close()
 
@@ -123,6 +177,11 @@ if __name__ == "__main__":
     
     # Start cleanup task
     cleanup_task = loop.create_task(run_cleanup_task(365))
+    
+    # We need host config and readers for metrics task
+    # but readers are created inside main(). 
+    # Let's refactor slightly to pass them or create them here.
+    # For now, I'll just let main() handle its loop and start a separate metrics task inside main.
     
     try:
         loop.run_until_complete(main())

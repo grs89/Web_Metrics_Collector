@@ -33,6 +33,23 @@ services:
       - postgres
     restart: always
 
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    container_name: wmc-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      - CLICKHOUSE_USER=wmc_user
+      - CLICKHOUSE_PASSWORD=wmc_password
+      - CLICKHOUSE_DB=wmc_db
+    volumes:
+      - ./wmc_clickhouse_data:/var/lib/clickhouse
+      - ./database/clickhouse_init.sql:/docker-entrypoint-initdb.d/clickhouse_init.sql
+    networks:
+      - wmc-network
+    restart: always
+
   log-processor:
     build:
       context: .
@@ -42,11 +59,17 @@ services:
     container_name: wmc-log-processor
     depends_on:
       - postgres
+      - clickhouse
     environment:
       - DB_HOST=postgres
       - DB_NAME=wmc_db
       - DB_USER=wmc_user
       - DB_PASSWORD=wmc_password
+      - CH_HOST=clickhouse
+      - CH_PORT=8123
+      - CH_USER=wmc_user
+      - CH_PASSWORD=wmc_password
+      - CH_DATABASE=wmc_db
       - GEOIP_LICENSE_KEY=${GEOIP_LICENSE_KEY}
       - CONFIG_FILE=/config/hosts.yml
     volumes:

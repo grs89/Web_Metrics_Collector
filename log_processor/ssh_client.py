@@ -82,6 +82,18 @@ class SSHLogReader:
             self.conn = None # Force reconnect next time
             return None
 
+    async def run_command(self, command):
+        """ Runs an arbitrary command via SSH and returns stdout. """
+        if not self.conn and not await self.connect():
+            return None
+        
+        try:
+            result = await self.conn.run(command, check=True)
+            return result.stdout.strip()
+        except Exception as e:
+            logging.error(f"Error running command '{command}' on {self.host}: {e}")
+            return None
+
     async def close(self):
         if self.conn:
             self.conn.close()
