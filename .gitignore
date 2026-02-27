@@ -15,6 +15,8 @@ keys/id_rsa.pub
 
 # Docker / Database
 wgp_postgres_data/
+wmc_postgres_data/
+wmc_clickhouse_data/
 
 # IDE
 .vscode/

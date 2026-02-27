@@ -1,3 +1,5 @@
+USE wmc_db;
+
 CREATE TABLE IF NOT EXISTS web_access_logs (
     id UUID DEFAULT generateUUIDv4(),
     timestamp DateTime64(3),

@@ -135,6 +135,24 @@ WMC utiliza `storage.py` para implementar un patrón de **Multi-almacenamiento**
 - **Postgres**: Actúa como fuente de verdad para el estado actual, IPs bloqueadas y filtros rápidos.
 - **ClickHouse**: Actúa como el motor de analítica histórica pesada, optimizado para agregaciones (ej: "hits por país en el último año").
 
+### Implementación del MultiStorage
+
+El wrapper `MultiStorage` en `storage.py` utiliza `asyncio.gather` para realizar las inserciones en PostgreSQL y ClickHouse de forma paralela, maximizando el throughput:
+
+```python
+async def save_logs(self, logs):
+    tasks = [self.primary.save_logs(logs)]
+    if self.secondary:
+        tasks.append(self.secondary.save_logs(logs))
+    await asyncio.gather(*tasks)
+```
+
+**Nota sobre ClickHouse**: La conexión se realiza mediante `clickhouse-connect` (HTTP Driver). Debido a que es una librería mayoritariamente bloqueante, se utiliza `asyncio.to_thread` para no bloquear el event loop principal de WMC.
+
+### Inicialización de Datos
+
+El archivo `database/clickhouse_init.sql` define el esquema de la tabla `web_access_logs`. Es crucial que este script incluya `USE wmc_db;` para asegurar que las tablas se creen en el esquema correcto durante el primer arranque del contenedor.
+
 ---
 
 ## 5. Componentes del Core (.py) <a name="componentes-del-core"></a>

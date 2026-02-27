@@ -2,6 +2,7 @@ import asyncpg
 import logging
 import json
 import clickhouse_connect
+import asyncio
 
 class PostgresStorage:
     def __init__(self, db_params):
