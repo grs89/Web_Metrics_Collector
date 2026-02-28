@@ -13,6 +13,7 @@ from storage import PostgresStorage, ClickHouseStorage, MultiStorage
 from ssh_client import SSHLogReader
 from system_metrics import SystemMetricsCollector
 from ssl_monitor import SSLMonitor
+from state import StateManager
 from prometheus_client import start_http_server
 
 # Initialize Metrics Server early
@@ -56,6 +57,10 @@ async def main():
     ch_storage = ClickHouseStorage(ch_params)
     storage = MultiStorage(pg_storage, ch_storage)
     
+    # Initialize State Manager
+    state_manager = StateManager(state_file="/app/data/state.json")
+    saved_offsets = state_manager.load()
+    
     if not await storage.connect():
         logging.error("Critical: Could not connect to primary database. Exiting.")
         return
@@ -65,8 +70,8 @@ async def main():
     processor.start() # Start the background pusher worker
     
     hosts = config.get('hosts', [])
-    # Initialize SSH Readers for each host
-    readers = {h['name']: SSHLogReader(h) for h in hosts}
+    # Initialize SSH Readers for each host with saved offsets
+    readers = {h['name']: SSHLogReader(h, saved_offsets.get(h['name'])) for h in hosts}
     
     logging.info(f"Initialized monitoring for {len(hosts)} hosts using asyncio.")
 
@@ -82,6 +87,7 @@ async def main():
     # Start background tasks
     metrics_task = asyncio.create_task(run_system_metrics_task(hosts, readers))
     ssl_task = asyncio.create_task(run_ssl_monitor_task(hosts))
+    state_task = asyncio.create_task(run_state_persistence_task(state_manager, readers))
     
     while running:
         tasks = []
@@ -100,10 +106,16 @@ async def main():
     # Cleanup tasks
     metrics_task.cancel()
     ssl_task.cancel()
-    await asyncio.gather(metrics_task, ssl_task, return_exceptions=True)
+    state_task.cancel()
+    await asyncio.gather(metrics_task, ssl_task, state_task, return_exceptions=True)
     
     # Cleanup
     await processor.stop() # Stop the background pusher worker
+    
+    # Save final state before closing
+    current_offsets = {name: r.log_offsets for name, r in readers.items()}
+    await state_manager.save(current_offsets)
+    
     for reader in readers.values():
         await reader.close()
     await storage.close()
@@ -170,6 +182,22 @@ async def run_cleanup_task(retention_days=365):
             await asyncio.sleep(60 * 60)
         finally:
             await storage.close()
+
+async def run_state_persistence_task(state_manager, readers, interval=30):
+    """
+    Periodically saves the log offsets to disk.
+    """
+    logging.info(f"Starting State Persistence Task (Interval: {interval}s)")
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            current_offsets = {name: r.log_offsets for name, r in readers.items()}
+            await state_manager.save(current_offsets)
+        except asyncio.CancelledError:
+            # Final save is handled in main()
+            raise
+        except Exception as e:
+            logging.error(f"Error in state persistence task: {e}")
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()

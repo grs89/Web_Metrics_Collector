@@ -4,13 +4,13 @@ import asyncio
 from metrics import SSH_CONNECTION_ATTEMPTS_TOTAL
 
 class SSHLogReader:
-    def __init__(self, host_config):
+    def __init__(self, host_config, initial_offsets=None):
         self.host = host_config['host']
         self.port = int(host_config.get('port', 22))
         self.user = host_config['user']
         self.key_path = host_config['key_path']
         self.conn = None
-        self.log_offsets = {} # Map file_path -> current_offset
+        self.log_offsets = initial_offsets or {} # Map file_path -> current_offset
 
     async def connect(self, retries=5, base_delay=1):
         for attempt in range(retries):

@@ -76,6 +76,7 @@ services:
       - ./log_processor:/app
       - ./hosts.yml:/config/hosts.yml
       - ./keys:/ssh_keys:ro # Mount local project keys folder
+      - ./wmc-data:/app/data
     ports:
       - "8080:8080"
     networks:
@@ -85,6 +86,3 @@ services:
 networks:
   wmc-network:
     driver: bridge
-
-#volumes:
-#  wgp_postgres_data:
