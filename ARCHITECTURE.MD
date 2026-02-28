@@ -153,6 +153,14 @@ async def save_logs(self, logs):
 
 El archivo `database/clickhouse_init.sql` define el esquema de la tabla `web_access_logs`. Es crucial que este script incluya `USE wmc_db;` para asegurar que las tablas se creen en el esquema correcto durante el primer arranque del contenedor.
 
+### Detección de Anomalías (Z-Score)
+
+En la V3, se ha introducido un motor de detección de anomalías estadísticas en `anomaly_detector.py`. Este componente realiza consultas periódicas a ClickHouse para comparar el tráfico actual contra el histórico.
+
+- **Modelo**: Utiliza el **Z-Score** para medir desviaciones estándar del promedio.
+- **Ventana**: Compara los últimos 5 minutos de tráfico contra las mismas ventanas de tiempo en semanas anteriores.
+- **Alertas**: Genera advertencias si `Z > 3.0` (Tráfico inusual alto) o `Z < -3.0` (Caída inusual de tráfico).
+
 ---
 
 ## 5. Componentes del Core (.py) <a name="componentes-del-core"></a>
@@ -168,6 +176,7 @@ El archivo `database/clickhouse_init.sql` define el esquema de la tabla `web_acc
 | `parser.py` | Motor de expresiones regulares y JSON para 6 formatos de web server. |
 | `geoip.py` | Interfaz asíncrona para la base de datos MaxMind GeoLite2. |
 | `ua_enricher.py` | Clasificador de User-Agents (Diferencia bots de humanos). |
+| `anomaly_detector.py` | Motor estadístico de detección de anomalías basándose en ClickHouse. |
 
 ---
 

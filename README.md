@@ -26,8 +26,9 @@ WMC es un sistema centralizado de monitoreo de logs que visualiza el tráfico we
 ### 🔁 Resiliencia y Auto-Recuperación
 - **Exponential Backoff (SSH)**: Si un servidor remoto no responde, reintenta automáticamente con esperas crecientes (1s → 2s → 4s → 8s → 16s).
 - **Buffer en Memoria**: Los logs se almacenan en una cola interna (`asyncio.Queue`, 10.000 entradas) antes de guardarse. Si la base de datos falla temporalmente, los logs **no se pierden**.
-- **Almacenamiento Dual**: Los logs se guardan simultáneamente en **PostgreSQL** (estado) y **ClickHouse** (analítica masiva). Si un almacén falla, el otro continúa operando.
-- **Retry en DB**: El worker de almacenamiento reintenta con Exponential Backoff si PostgreSQL o ClickHouse no están disponibles.
+### 📉 Inteligencia de Datos
+- **Detección de Anomalías**: Identifica picos o caídas inusuales de tráfico comparando el tiempo real contra el promedio histórico (Z-Score).
+- **Almacenamiento Dual**: Los logs se guardan simultáneamente en **PostgreSQL** (estado) y **ClickHouse** (analítica masiva).
 
 ### 📊 Observabilidad
 - **Métricas Prometheus**: Endpoint en `:8080/metrics` con contadores de logs procesados, errores de DB, tamaño de la cola y estado de conexiones SSH.
@@ -143,8 +144,11 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
 ### 🔁 Resiliência e Auto-Recuperação
 - **Exponential Backoff (SSH)**: Se um servidor remoto não responder, tenta novamente com esperas crescentes (1s → 2s → 4s → 8s → 16s).
 - **Buffer em Memória**: Os logs são armazenados numa fila interna (`asyncio.Queue`, 10.000 entradas) antes de serem salvos. Se o banco de dados falhar temporariamente, os logs **não são perdidos**.
-- **Armazenamento Dual**: Os logs são salvos simultaneamente no **PostgreSQL** (estado) e **ClickHouse** (análise massiva). Se um armazenamento falhar, o outro continua operando.
 - **Retry no DB**: O worker de armazenamento tenta novamente com Exponential Backoff se o PostgreSQL ou ClickHouse não estiverem disponíveis.
+
+### 📉 Inteligência de Dados
+- **Detecção de Anomalias**: Identifica picos ou quedas inusitais de tráfego comparando o tempo real com a média histórica (Z-Score).
+- **Armazenamento Dual**: Os logs são salvos simultaneamente no **PostgreSQL** (estado) e **ClickHouse** (análise massiva). Se um armazenamento falhar, o outro continua operando.
 
 ### 📊 Observabilidade
 - **Métricas Prometheus**: Endpoint em `:8080/metrics` com contadores de logs processados, erros de DB, tamanho da fila e status das conexões SSH.

@@ -14,6 +14,7 @@ from ssh_client import SSHLogReader
 from system_metrics import SystemMetricsCollector
 from ssl_monitor import SSLMonitor
 from state import StateManager
+from anomaly_detector import AnomalyDetector
 from prometheus_client import start_http_server
 
 # Initialize Metrics Server early
@@ -61,6 +62,9 @@ async def main():
     state_manager = StateManager(state_file="/app/data/state.json")
     saved_offsets = state_manager.load()
     
+    # Initialize Anomaly Detector
+    anomaly_detector = AnomalyDetector(storage)
+    
     if not await storage.connect():
         logging.error("Critical: Could not connect to primary database. Exiting.")
         return
@@ -88,6 +92,7 @@ async def main():
     metrics_task = asyncio.create_task(run_system_metrics_task(hosts, readers))
     ssl_task = asyncio.create_task(run_ssl_monitor_task(hosts))
     state_task = asyncio.create_task(run_state_persistence_task(state_manager, readers))
+    anomaly_task = asyncio.create_task(run_anomaly_detection_task(anomaly_detector, hosts))
     
     while running:
         tasks = []
@@ -107,7 +112,8 @@ async def main():
     metrics_task.cancel()
     ssl_task.cancel()
     state_task.cancel()
-    await asyncio.gather(metrics_task, ssl_task, state_task, return_exceptions=True)
+    anomaly_task.cancel()
+    await asyncio.gather(metrics_task, ssl_task, state_task, anomaly_task, return_exceptions=True)
     
     # Cleanup
     await processor.stop() # Stop the background pusher worker
@@ -198,6 +204,22 @@ async def run_state_persistence_task(state_manager, readers, interval=30):
             raise
         except Exception as e:
             logging.error(f"Error in state persistence task: {e}")
+
+async def run_anomaly_detection_task(anomaly_detector, hosts, interval=300):
+    """
+    Periodically checks for traffic anomalies (every 5 minutes).
+    """
+    logging.info(f"Starting Anomaly Detection Task (Interval: {interval}s)")
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            tasks = [anomaly_detector.check_anomalies(h['name']) for h in hosts]
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logging.error(f"Error in anomaly detection task: {e}")
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()

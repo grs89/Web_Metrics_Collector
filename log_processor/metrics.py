@@ -59,3 +59,16 @@ HOST_LOAD_AVG = Gauge(
     "System load average (1 min) on the monitored host",
     ["host"]
 )
+
+# Anomaly Detection Metrics
+TRAFFIC_ANOMALY_SCORE = Gauge(
+    "wmc_traffic_anomaly_score",
+    "Current anomaly Z-Score based on traffic volume compared to historical data",
+    ["host"]
+)
+
+ANOMALIES_DETECTED_TOTAL = Counter(
+    "wmc_anomalies_detected_total",
+    "Total number of anomalies detected for a host",
+    ["host"]
+)
