@@ -34,3 +34,4 @@ id_rsa
 id_rsa.pub
 keys/*
 !keys/.gitkeep
+state.json

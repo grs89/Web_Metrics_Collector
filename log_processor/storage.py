@@ -41,7 +41,8 @@ class PostgresStorage:
                 log.get('country_code'), log.get('city'), 
                 log.get('latitude'), log.get('longitude'), 
                 log.get('server_type'), log.get('raw_log'),
-                log.get('request_time_ms'), log.get('bot_category')
+                log.get('request_time_ms'), log.get('bot_category'),
+                log.get('log_category', 'access')
             ) for log in logs
         ]
 
@@ -51,9 +52,10 @@ class PostgresStorage:
                 status_code, response_size, user_agent, browser, os, device, is_fake_bot, referrer,
                 country_code, city, latitude, longitude, 
                 server_type, raw_log,
-                request_time_ms, bot_category
+                request_time_ms, bot_category,
+                log_category
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
             )
         """
         try:
@@ -127,7 +129,8 @@ class ClickHouseStorage:
                 log.get('user_agent') or '', log.get('browser') or '',
                 log.get('os') or '', log.get('device') or '', log.get('bot_category') or '',
                 1 if log.get('is_fake_bot') else 0, log.get('referrer') or '',
-                log.get('server_type') or '', log.get('raw_log') or ''
+                log.get('server_type') or '', log.get('log_category') or 'access',
+                log.get('raw_log') or ''
             ])
 
         columns = [
@@ -135,7 +138,7 @@ class ClickHouseStorage:
             'status_code', 'response_size', 'request_time_ms',
             'country_code', 'city', 'latitude', 'longitude',
             'user_agent', 'browser', 'os', 'device', 'bot_category',
-            'is_fake_bot', 'referrer', 'server_type', 'raw_log'
+            'is_fake_bot', 'referrer', 'server_type', 'log_category', 'raw_log'
         ]
 
         try:

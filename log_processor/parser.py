@@ -17,6 +17,14 @@ HAPROXY_REGEX = re.compile(
 
 class LogParser:
     @staticmethod
+    def get_category(log_type):
+        if 'error' in log_type:
+            return 'error'
+        if 'app' in log_type:
+            return 'app'
+        return 'access'
+
+    @staticmethod
     def parse(line, log_type):
         line = line.strip()
         if not line:
@@ -45,8 +53,11 @@ class LogParser:
             elif 'combined' in log_type:
                return LogParser._parse_clf(line)
             
-            elif 'iis' in log_type: # IIS W3C Support
-                return LogParser._parse_iis(line)
+            elif 'nginx-error' in log_type:
+                return LogParser._parse_nginx_error(line)
+                
+            elif 'generic-app' in log_type:
+                return LogParser._parse_generic_app(line)
                 
             else:
                 # Default fallback
@@ -264,4 +275,59 @@ class LogParser:
 
         except (ValueError, IndexError):
             return None
+
+    @staticmethod
+    def _parse_nginx_error(line):
+        """
+        Parses Nginx error logs.
+        Format example: 2026/02/28 18:10:05 [error] 1234#0: *56 open() "/var/www/html/404" failed (2: No such file or directory)
+        """
+        try:
+            # Simple splitting or regex for nginx error
+            parts = line.split(' ', 3)
+            if len(parts) < 4: return None
+            
+            ts_str = f"{parts[0]} {parts[1]}"
+            # Level is usually [error], [warn], etc.
+            level = parts[2].strip('[]')
+            
+            return {
+                'timestamp': LogParser._parse_datetime(ts_str),
+                'method': level.upper(), # Reuse method field for error level
+                'uri': parts[3][:100], # Store start of message in URI field
+                'status_code': 0,
+                'client_ip': None, # Error logs sometimes have IP but not always in same place
+                'raw_log': line
+            }
+        except (ValueError, IndexError):
+            return None
+
+    @staticmethod
+    def _parse_generic_app(line):
+        """
+        Generic app log parser: tries JSON, falls back to raw text with current timestamp.
+        """
+        if line.startswith('{'):
+            try:
+                data = json.loads(line)
+                return {
+                    'timestamp': LogParser._parse_datetime(data.get('time') or data.get('timestamp') or data.get('@timestamp')),
+                    'client_ip': data.get('ip') or data.get('client_ip'),
+                    'method': data.get('level') or data.get('severity') or 'INFO',
+                    'uri': data.get('message') or data.get('msg'),
+                    'status_code': 0,
+                    'raw_log': line
+                }
+            except (json.JSONDecodeError, KeyError):
+                pass
+        
+        # Plain text fallback
+        return {
+            'timestamp': datetime.now(),
+            'method': 'INFO',
+            'uri': line[:100],
+            'status_code': 0,
+            'client_ip': None,
+            'raw_log': line
+        }
 

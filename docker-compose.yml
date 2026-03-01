@@ -78,7 +78,7 @@ services:
       - ./keys:/ssh_keys:ro # Mount local project keys folder
       - ./wmc-data:/app/data
     ports:
-      - "8080:8080"
+      - "8082:8080"
     networks:
       - wmc-network
     restart: unless-stopped

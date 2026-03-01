@@ -1,6 +1,6 @@
 {
   "Ingelap-Web": {
-    "/var/log/nginx/access.log": 25058,
+    "/var/log/nginx/access.log": 42435,
     "/var/log/nginx/landing_page_ingelap.access.log": 1586
   }
 }

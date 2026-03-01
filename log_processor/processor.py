@@ -33,11 +33,7 @@ class LogProcessor:
         if self._worker_task:
             logging.info("Stopping LogProcessor worker...")
             self._worker_task.cancel()
-            try:
-                await self._worker_task
-            except asyncio.CancelledError:
-                # Expected when canceling
-                raise
+            await self._worker_task
             self._worker_task = None
 
     async def _buffer_worker(self):
@@ -158,6 +154,7 @@ class LogProcessor:
             parsed.setdefault(key, None)
         
         parsed['source_host'] = host_name
+        parsed['log_category'] = LogParser.get_category(log_type)
         parsed['server_type'] = 'nginx' if 'nginx' in log_type else 'apache'
         
         return parsed

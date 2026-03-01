@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS web_access_logs (
     is_fake_bot UInt8,
     referrer String,
     server_type LowCardinality(String),
+    log_category LowCardinality(String) DEFAULT 'access',
     raw_log String
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
