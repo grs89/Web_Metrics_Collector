@@ -147,7 +147,14 @@ async def save_logs(self, logs):
     await asyncio.gather(*tasks)
 ```
 
-**Nota sobre ClickHouse**: La conexión se realiza mediante `clickhouse-connect` (HTTP Driver). Debido a que es una librería mayoritariamente bloqueante, se utiliza `asyncio.to_thread` para no bloquear el event loop principal de WMC.
+### Estrategia de Persistencia y Resiliencia
+
+WMC implementa múltiples capas para asegurar que no se pierdan datos:
+
+1.  **Persistencia de Offsets**: Utiliza un gestor de estado (`state.py`) que guarda la última posición leída de cada archivo en cada host en un archivo `/app/data/state.json`. Esto permite reanudar la lectura tras un reinicio sin duplicar datos.
+2.  **Volumen Local**: El archivo de estado se guarda en un volumen persistente de Docker (`wmc-data`), lo que garantiza su supervivencia incluso si el contenedor es recreado.
+3.  **Retry en Almacenamiento**: Implementa *Exponential Backoff* al intentar escribir en Postgres o ClickHouse para manejar caídas temporales de la base de datos.
+4.  **Segmentación por Categorías**: El sistema ahora soporta diferentes naturalezas de logs, clasificados mediante la columna `log_category` (`access`, `error`, `app`).
 
 ### Inicialización de Datos
 
@@ -158,8 +165,8 @@ El archivo `database/clickhouse_init.sql` define el esquema de la tabla `web_acc
 En la V3, se ha introducido un motor de detección de anomalías estadísticas en `anomaly_detector.py`. Este componente realiza consultas periódicas a ClickHouse para comparar el tráfico actual contra el histórico.
 
 - **Modelo**: Utiliza el **Z-Score** para medir desviaciones estándar del promedio.
-- **Ventana**: Compara los últimos 5 minutos de tráfico contra las mismas ventanas de tiempo en semanas anteriores.
-- **Alertas**: Genera advertencias si `Z > 3.0` (Tráfico inusual alto) o `Z < -3.0` (Caída inusual de tráfico).
+- **Ventana**: Compara los últimos 5 minutos de tráfico contra las mismas ventanas de tiempo en semanas anteriores (estacionalidad).
+- **Métricas**: Expone `wmc_traffic_anomaly_score` a Prometheus para alertado en Grafana.
 
 ---
 
@@ -170,10 +177,11 @@ En la V3, se ha introducido un motor de detección de anomalías estadísticas e
 | `main.py` | Orquestador central. Gestiona el ciclo de vida de todas las tareas `asyncio`. |
 | `processor.py` | Coordina el enriquecimiento. Usa un buffer de 10k entradas para absorber picos. |
 | `storage.py` | Implementa `PostgresStorage`, `ClickHouseStorage` y el wrapper `MultiStorage`. |
+| `state.py` | Gestor de persistencia de punteros (offsets) JSON. |
 | `ssh_client.py` | Abstracción de red. Maneja reconexiones automáticas y ejecución de comandos remotos. |
 | `system_metrics.py` | Parser de telemetría. Convierte salidas de shell de Linux en métricas Prometheus. |
 | `ssl_monitor.py` | Monitor de seguridad. Realiza conexiones socket SSL para auditar certificados. |
-| `parser.py` | Motor de expresiones regulares y JSON para 6 formatos de web server. |
+| `parser.py` | Motor de expresiones regulares y JSON para accesos, errores y logs de apps. |
 | `geoip.py` | Interfaz asíncrona para la base de datos MaxMind GeoLite2. |
 | `ua_enricher.py` | Clasificador de User-Agents (Diferencia bots de humanos). |
 | `anomaly_detector.py` | Motor estadístico de detección de anomalías basándose en ClickHouse. |
@@ -182,9 +190,10 @@ En la V3, se ha introducido un motor de detección de anomalías estadísticas e
 
 ## 6. Observabilidad y Métricas <a name="observabilidad"></a>
 
-WMC expone un endpoint Prometheus en el puerto **8080** con métricas clave:
+WMC expone un endpoint Prometheus en el puerto **8082** con métricas clave:
 
 - **Sistema**: `wmc_host_cpu_usage_percent`, `wmc_host_memory_usage_percent`, `wmc_host_disk_usage_percent`.
+- **Inteligencia**: `wmc_traffic_anomaly_score`, `wmc_anomalies_detected_total`.
 - **Seguridad**: `wmc_ssl_cert_days_remaining`.
 - **Rendimiento**: `wmc_ingestion_latency_seconds` (Histograma).
 - **Salud del Buffer**: `wmc_log_buffer_size`.

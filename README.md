@@ -28,10 +28,15 @@ WMC es un sistema centralizado de monitoreo de logs que visualiza el tráfico we
 - **Buffer en Memoria**: Los logs se almacenan en una cola interna (`asyncio.Queue`, 10.000 entradas) antes de guardarse. Si la base de datos falla temporalmente, los logs **no se pierden**.
 ### 📉 Inteligencia de Datos
 - **Detección de Anomalías**: Identifica picos o caídas inusuales de tráfico comparando el tiempo real contra el promedio histórico (Z-Score).
-- **Almacenamiento Dual**: Los logs se guardan simultáneamente en **PostgreSQL** (estado) y **ClickHouse** (analítica masiva).
+- **Multisoporte de Logs**: Soporte para `access.log`, `error.log` (Nginx) y logs de aplicaciones (`Python`, `Node.js`, `PHP`).
+- **Almacenamiento Dual**: Los logs se guardan simultáneamente en **PostgreSQL** (estado) y **ClickHouse** (analítica).
+
+### 🔁 Resiliencia y Persistencia
+- **Persistencia de Offsets**: Guarda la posición de lectura en un archivo de estado para no perder ni duplicar datos tras un reinicio.
+- **Exponential Backoff**: Reintentos inteligentes para conexiones SSH y escrituras en base de datos.
 
 ### 📊 Observabilidad
-- **Métricas Prometheus**: Endpoint en `:8080/metrics` con contadores de logs procesados, errores de DB, tamaño de la cola y estado de conexiones SSH.
+- **Métricas Prometheus**: Endpoint en `:8082/metrics` con telemetría completa.
 - **ClickHouse Analytics**: Motor optimizado para consultas agregadas sobre millones de registros.
 - **Docker Health Check**: El contenedor se auto-monitorea. Si el event loop se bloquea, Docker lo detecta y puede reiniciarlo.
 
@@ -73,7 +78,7 @@ WMC es un sistema centralizado de monitoreo de logs que visualiza el tráfico we
 6. **Acceder a Grafana**: Abre `http://localhost:3000` (Usuario: `admin` / Contraseña: `admin`). Encontrarás dos dashboards:
    - **WMC Dashboard**: Analítica general de tráfico.
    - **🛡️ WMC Security Center**: Centro de mando de seguridad (mapa de ataques, Top 10 amenazas, ancho de banda bots vs usuarios reales).
-7. **Ver Métricas Internas**: Abre `http://localhost:8080/metrics`.
+7. **Ver Métricas Internas**: Abre `http://localhost:8082/metrics`.
 
 ### ⚙️ Configuración del Dashboard
 Para que la detección de **Hosts Sospechosos** funcione:
@@ -151,7 +156,7 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
 - **Armazenamento Dual**: Os logs são salvos simultaneamente no **PostgreSQL** (estado) e **ClickHouse** (análise massiva). Se um armazenamento falhar, o outro continua operando.
 
 ### 📊 Observabilidade
-- **Métricas Prometheus**: Endpoint em `:8080/metrics` com contadores de logs processados, erros de DB, tamanho da fila e status das conexões SSH.
+- **Métricas Prometheus**: Endpoint em `:8082/metrics` com telemetria completa.
 - **ClickHouse Analytics**: Motor otimizado para consultas agregadas sobre milhões de registros.
 - **Docker Health Check**: O container se auto-monitora. Se o event loop travar, o Docker detecta e pode reiniciá-lo.
 
@@ -188,7 +193,7 @@ O WMC é um sistema centralizado de monitoramento de logs que visualiza o tráfe
 6. **Acessar o Grafana**: Abra `http://localhost:3000` (Usuário: `admin` / Senha: `admin`). Você encontrará dois dashboards:
    - **WMC Dashboard**: Análise geral de tráfego.
    - **🛡️ WMC Security Center**: Centro de comando de segurança (mapa de ataques, Top 10 ameaças, largura de banda).
-7. **Ver Métricas Internas**: Abra `http://localhost:8080/metrics`.
+7. **Ver Métricas Internas**: Abra `http://localhost:8082/metrics`.
 
 ### ⚙️ Configuração do Dashboard
 Para que a detecção de **Hosts Suspeitos** funcione:
