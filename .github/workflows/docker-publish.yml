@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   deploy:
-    uses: grs89/github-template/.github/workflows/docker-publish.yml@v1
+    uses: grs89/github-template/.github/workflows/docker-build_push_auto.yml@v2
     secrets:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
