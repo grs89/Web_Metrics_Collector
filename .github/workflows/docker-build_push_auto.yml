@@ -19,3 +19,7 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO }}
+#      secrets: inherit
+    with:
+      CONTEXT_DIR: 'log_processor'
+
